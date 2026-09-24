@@ -1,5 +1,5 @@
 import { notFound } from "next/navigation";
-import { supabase } from "@/lib/supabase";
+import { supabaseRest } from "@/lib/supabase";
 import type { CatalogArticle } from "@/lib/types";
 import { formatMoney } from "@/lib/format";
 import { ArticlePlaceholderIcon } from "@/components/ArticlePlaceholderIcon";
@@ -8,10 +8,8 @@ import { AddToCartButton } from "@/components/AddToCartButton";
 export const revalidate = 300;
 
 async function getArticle(code: string): Promise<CatalogArticle | null> {
-  if (!supabase) return null;
-  const { data, error } = await supabase.from("articles_catalogue").select("*").eq("code", code).maybeSingle();
-  if (error || !data) return null;
-  return data as CatalogArticle;
+  const data = (await supabaseRest(`articles_catalogue?select=*&code=eq.${encodeURIComponent(code)}&limit=1`, revalidate)) as CatalogArticle[] | null;
+  return data && data.length > 0 ? data[0] : null;
 }
 
 export default async function ArticlePage({ params }: PageProps<"/article/[code]">) {

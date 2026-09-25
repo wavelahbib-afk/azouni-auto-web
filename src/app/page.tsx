@@ -1,4 +1,4 @@
-import { supabaseRestAll, isSupabaseConfigured } from "@/lib/supabase";
+import { supabaseRestAll, fetchEquivalencesByCode, isSupabaseConfigured } from "@/lib/supabase";
 import type { CatalogArticle } from "@/lib/types";
 import { Catalogue } from "@/components/Catalogue";
 
@@ -7,8 +7,11 @@ import { Catalogue } from "@/components/Catalogue";
 export const revalidate = 300;
 
 async function getArticles(): Promise<CatalogArticle[]> {
-  const data = await supabaseRestAll("articles_catalogue?select=*&order=designation", revalidate);
-  return data as CatalogArticle[];
+  const [data, equivByCode] = await Promise.all([
+    supabaseRestAll("articles_catalogue?select=*&order=designation", revalidate),
+    fetchEquivalencesByCode(revalidate),
+  ]);
+  return (data as CatalogArticle[]).map((a) => ({ ...a, equivalences: equivByCode.get(a.code) ?? [] }));
 }
 
 export default async function Home() {

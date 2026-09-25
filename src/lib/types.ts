@@ -14,6 +14,8 @@ export interface CatalogArticle {
   stock_qty: number;
   rayon: string | null;
   updated_at: string;
+  /** References equivalentes/d'origine (article_equivalences_catalogue) -- absent tant que non chargees. */
+  equivalences?: string[];
 }
 
 export interface CartLine {

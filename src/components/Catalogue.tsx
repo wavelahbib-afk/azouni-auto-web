@@ -2,6 +2,7 @@
 
 import { useMemo, useState } from 'react';
 import type { CatalogArticle } from '@/lib/types';
+import { normalizeReference } from '@/lib/normalize';
 import { ArticleCard } from './ArticleCard';
 
 export function Catalogue({ articles }: { articles: CatalogArticle[] }) {
@@ -12,10 +13,15 @@ export function Catalogue({ articles }: { articles: CatalogArticle[] }) {
 
   const filtered = useMemo(() => {
     const q = query.trim().toLowerCase();
+    const qRef = normalizeReference(query);
     return articles.filter((a) => {
       if (famille && a.famille !== famille) return false;
       if (!q) return true;
-      return a.designation.toLowerCase().includes(q) || (a.marque ?? '').toLowerCase().includes(q) || (a.reference ?? '').toLowerCase().includes(q);
+      if (a.designation.toLowerCase().includes(q) || (a.marque ?? '').toLowerCase().includes(q)) return true;
+      // Recherche par reference (propre ou equivalente/d'origine) : insensible au format (espaces/tirets/points).
+      if (qRef && normalizeReference(a.reference ?? '').includes(qRef)) return true;
+      if (qRef && a.equivalences?.some((ref) => normalizeReference(ref).includes(qRef))) return true;
+      return false;
     });
   }, [articles, query, famille]);
 

@@ -8,8 +8,14 @@ import { AddToCartButton } from "@/components/AddToCartButton";
 export const revalidate = 300;
 
 async function getArticle(code: string): Promise<CatalogArticle | null> {
-  const data = (await supabaseRest(`articles_catalogue?select=*&code=eq.${encodeURIComponent(code)}&limit=1`, revalidate)) as CatalogArticle[] | null;
-  return data && data.length > 0 ? data[0] : null;
+  const [data, equivRows] = await Promise.all([
+    supabaseRest(`articles_catalogue?select=*&code=eq.${encodeURIComponent(code)}&limit=1`, revalidate) as Promise<CatalogArticle[] | null>,
+    supabaseRest(`article_equivalences_catalogue?select=equivalent_reference&code=eq.${encodeURIComponent(code)}`, revalidate) as Promise<
+      { equivalent_reference: string }[] | null
+    >,
+  ]);
+  if (!data || data.length === 0) return null;
+  return { ...data[0], equivalences: (equivRows ?? []).map((r) => r.equivalent_reference) };
 }
 
 export default async function ArticlePage({ params }: PageProps<"/article/[code]">) {
@@ -39,6 +45,19 @@ export default async function ArticlePage({ params }: PageProps<"/article/[code]
         </dl>
         <p className="text-2xl font-bold text-blue-900 mb-6">{formatMoney(article.prix_vente_ttc)}</p>
         <AddToCartButton article={article} />
+
+        {article.equivalences && article.equivalences.length > 0 && (
+          <div className="mt-8 pt-6 border-t border-slate-200">
+            <h2 className="text-sm font-semibold text-slate-700 mb-2">Références équivalentes / d&apos;origine</h2>
+            <div className="flex flex-wrap gap-2">
+              {article.equivalences.map((ref) => (
+                <span key={ref} className="text-xs font-mono bg-slate-100 text-slate-600 px-2 py-1 rounded">
+                  {ref}
+                </span>
+              ))}
+            </div>
+          </div>
+        )}
       </div>
     </div>
   );

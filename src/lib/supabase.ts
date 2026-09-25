@@ -46,6 +46,21 @@ const PAGE_SIZE = 1000; // limite par defaut de l'API REST Supabase (max-rows) :
  * la meme reponse mise en cache -- offset/limit dans l'URL rend chaque page
  * une requete distincte sans ambiguite.
  */
+/** Recupere toutes les references equivalentes/d'origine et les regroupe par code article. */
+export async function fetchEquivalencesByCode(revalidateSeconds = 300): Promise<Map<string, string[]>> {
+  const rows = (await supabaseRestAll('article_equivalences_catalogue?select=code,equivalent_reference', revalidateSeconds)) as {
+    code: string;
+    equivalent_reference: string;
+  }[];
+  const map = new Map<string, string[]>();
+  for (const r of rows) {
+    const list = map.get(r.code);
+    if (list) list.push(r.equivalent_reference);
+    else map.set(r.code, [r.equivalent_reference]);
+  }
+  return map;
+}
+
 export async function supabaseRestAll(path: string, revalidateSeconds = 300): Promise<unknown[]> {
   if (!supabaseUrl || !supabaseAnonKey) return [];
   const separator = path.includes('?') ? '&' : '?';

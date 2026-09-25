@@ -34,3 +34,34 @@ export async function supabaseRest(path: string, revalidateSeconds = 300): Promi
     return null;
   }
 }
+
+const PAGE_SIZE = 1000; // limite par defaut de l'API REST Supabase (max-rows) : on pagine avec l'en-tete Range pour tout recuperer.
+
+/** Comme supabaseRest, mais recupere TOUTES les lignes en paginant (le catalogue peut depasser 1000 articles). */
+export async function supabaseRestAll(path: string, revalidateSeconds = 300): Promise<unknown[]> {
+  if (!supabaseUrl || !supabaseAnonKey) return [];
+  const all: unknown[] = [];
+  for (let offset = 0; ; offset += PAGE_SIZE) {
+    try {
+      const res = await fetch(`${supabaseUrl}/rest/v1/${path}`, {
+        headers: {
+          apikey: supabaseAnonKey,
+          Authorization: `Bearer ${supabaseAnonKey}`,
+          Range: `${offset}-${offset + PAGE_SIZE - 1}`,
+        },
+        next: { revalidate: revalidateSeconds },
+      });
+      if (!res.ok) {
+        console.error('[supabase] erreur REST (page):', res.status, await res.text().catch(() => ''));
+        break;
+      }
+      const page = (await res.json()) as unknown[];
+      all.push(...page);
+      if (page.length < PAGE_SIZE) break; // derniere page
+    } catch (err) {
+      console.error('[supabase] fetch echoue (page):', err);
+      break;
+    }
+  }
+  return all;
+}

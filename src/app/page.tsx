@@ -1,4 +1,4 @@
-import { supabaseRest, isSupabaseConfigured } from "@/lib/supabase";
+import { supabaseRestAll, isSupabaseConfigured } from "@/lib/supabase";
 import type { CatalogArticle } from "@/lib/types";
 import { Catalogue } from "@/components/Catalogue";
 
@@ -7,8 +7,8 @@ import { Catalogue } from "@/components/Catalogue";
 export const revalidate = 300;
 
 async function getArticles(): Promise<CatalogArticle[]> {
-  const data = await supabaseRest("articles_catalogue?select=*&order=designation", revalidate);
-  return (data as CatalogArticle[] | null) ?? [];
+  const data = await supabaseRestAll("articles_catalogue?select=*&order=designation", revalidate);
+  return data as CatalogArticle[];
 }
 
 export default async function Home() {

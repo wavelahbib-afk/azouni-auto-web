@@ -5,8 +5,8 @@ import type { CatalogArticle } from '@/lib/types';
 import { normalizeReference } from '@/lib/normalize';
 import { ArticleCard } from './ArticleCard';
 
-export function Catalogue({ articles }: { articles: CatalogArticle[] }) {
-  const [query, setQuery] = useState('');
+export function Catalogue({ articles, initialQuery = '' }: { articles: CatalogArticle[]; initialQuery?: string }) {
+  const [query, setQuery] = useState(initialQuery);
   const [famille, setFamille] = useState('');
 
   const familles = useMemo(() => Array.from(new Set(articles.map((a) => a.famille).filter((f): f is string => Boolean(f)))).sort(), [articles]);

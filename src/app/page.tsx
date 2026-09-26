@@ -14,8 +14,10 @@ async function getArticles(): Promise<CatalogArticle[]> {
   return (data as CatalogArticle[]).map((a) => ({ ...a, equivalences: equivByCode.get(a.code) ?? [] }));
 }
 
-export default async function Home() {
+export default async function Home({ searchParams }: PageProps<"/">) {
   const articles = await getArticles();
+  const params = await searchParams;
+  const initialQuery = typeof params.q === "string" ? params.q : "";
 
   if (!isSupabaseConfigured) {
     return (
@@ -35,5 +37,5 @@ export default async function Home() {
     );
   }
 
-  return <Catalogue articles={articles} />;
+  return <Catalogue articles={articles} initialQuery={initialQuery} />;
 }

@@ -1,13 +1,14 @@
+import { PackageSearch } from 'lucide-react';
+
 /**
- * Pas de vraies photos en V1 (photo_path d'AZOUNI AUTO est un chemin local,
- * inexploitable depuis le web) : une icone generique par famille, avec ses
- * initiales, tient lieu de vignette.
+ * Pas encore de photo pour cet article (pas de photo_path sur l'article,
+ * dossier photos_articles pas encore copie sur le PC serveur, ou premiere
+ * synchro pas encore faite) : icone generique, jamais un cadre vide.
  */
-export function ArticlePlaceholderIcon({ famille, className }: { famille: string | null; className?: string }) {
-  const label = (famille ?? '?').trim().slice(0, 2).toUpperCase();
+export function ArticlePlaceholderIcon({ className }: { className?: string }) {
   return (
-    <div className={`flex items-center justify-center bg-slate-100 text-slate-400 font-bold ${className ?? ''}`}>
-      <span className="text-2xl">{label}</span>
+    <div className={`flex items-center justify-center bg-gradient-to-br from-slate-50 to-slate-100 text-slate-300 ${className ?? ''}`}>
+      <PackageSearch size={40} strokeWidth={1.5} />
     </div>
   );
 }

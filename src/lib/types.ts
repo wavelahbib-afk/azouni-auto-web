@@ -13,6 +13,8 @@ export interface CatalogArticle {
   prix_vente_ttc: number;
   stock_qty: number;
   rayon: string | null;
+  /** URL publique de la photo (bucket Supabase "article-photos"), ou null si pas encore synchronisee -- voir webSyncService.ts. */
+  photo_url: string | null;
   updated_at: string;
   /** References equivalentes/d'origine (article_equivalences_catalogue) -- absent tant que non chargees. */
   equivalences?: string[];

@@ -5,6 +5,9 @@ import type { CatalogArticle } from '@/lib/types';
 import { normalizeReference } from '@/lib/normalize';
 import { ArticleCard } from './ArticleCard';
 
+// Meme taille de page que la liste Articles de l'application de bureau.
+const PAGE_SIZE = 50;
+
 /**
  * Meme decoupage en mots que l'application de bureau
  * (electron/services/search.ts::buildFtsQuery) : accents/symboles ignores,
@@ -29,6 +32,7 @@ function matchesAllTokensAsPrefix(text: string, queryTokens: string[]): boolean 
 export function Catalogue({ articles, initialQuery = '' }: { articles: CatalogArticle[]; initialQuery?: string }) {
   const [query, setQuery] = useState(initialQuery);
   const [famille, setFamille] = useState('');
+  const [page, setPage] = useState(1);
 
   const familles = useMemo(() => Array.from(new Set(articles.map((a) => a.famille).filter((f): f is string => Boolean(f)))).sort(), [articles]);
 
@@ -46,6 +50,23 @@ export function Catalogue({ articles, initialQuery = '' }: { articles: CatalogAr
       return false;
     });
   }, [articles, query, famille]);
+
+  // Retour a la page 1 quand la recherche ou le filtre change (ajustement
+  // pendant le rendu, pas dans un effect : cf https://react.dev/learn/you-might-not-need-an-effect).
+  const filterKey = `${query}|${famille}`;
+  const [prevFilterKey, setPrevFilterKey] = useState(filterKey);
+  if (filterKey !== prevFilterKey) {
+    setPrevFilterKey(filterKey);
+    setPage(1);
+  }
+
+  const totalPages = Math.max(1, Math.ceil(filtered.length / PAGE_SIZE));
+  const paged = filtered.slice((page - 1) * PAGE_SIZE, page * PAGE_SIZE);
+
+  function goToPage(p: number) {
+    setPage(p);
+    document.getElementById('catalogue')?.scrollIntoView({ behavior: 'smooth', block: 'start' });
+  }
 
   return (
     <div>
@@ -85,11 +106,36 @@ export function Catalogue({ articles, initialQuery = '' }: { articles: CatalogAr
       {filtered.length === 0 ? (
         <p className="text-slate-500 text-sm py-10 text-center">Aucun article ne correspond à votre recherche.</p>
       ) : (
-        <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 gap-4">
-          {filtered.map((a) => (
-            <ArticleCard key={a.code} article={a} />
-          ))}
-        </div>
+        <>
+          <p className="text-xs text-slate-400 mb-3">{filtered.length} article{filtered.length > 1 ? 's' : ''} trouvé{filtered.length > 1 ? 's' : ''}</p>
+          <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 gap-4">
+            {paged.map((a) => (
+              <ArticleCard key={a.code} article={a} />
+            ))}
+          </div>
+
+          {totalPages > 1 && (
+            <div className="flex items-center justify-center gap-4 mt-8 text-sm">
+              <button
+                className="px-4 py-2 rounded-full font-semibold text-slate-600 bg-slate-100 hover:bg-slate-200 disabled:opacity-40 disabled:hover:bg-slate-100 transition-colors"
+                disabled={page <= 1}
+                onClick={() => goToPage(page - 1)}
+              >
+                Précédent
+              </button>
+              <span className="text-slate-500">
+                Page {page} / {totalPages}
+              </span>
+              <button
+                className="px-4 py-2 rounded-full font-semibold text-slate-600 bg-slate-100 hover:bg-slate-200 disabled:opacity-40 disabled:hover:bg-slate-100 transition-colors"
+                disabled={page >= totalPages}
+                onClick={() => goToPage(page + 1)}
+              >
+                Suivant
+              </button>
+            </div>
+          )}
+        </>
       )}
     </div>
   );

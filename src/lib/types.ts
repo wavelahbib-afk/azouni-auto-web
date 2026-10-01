@@ -18,6 +18,8 @@ export interface CatalogArticle {
   updated_at: string;
   /** References equivalentes/d'origine (article_equivalences_catalogue) -- absent tant que non chargees. */
   equivalences?: string[];
+  /** Vehicules compatibles (article_vehicle_compat_catalogue), groupes par marque -- absent tant que non charges. */
+  vehicleCompat?: { make: string; models: string[] }[];
 }
 
 export interface CartLine {

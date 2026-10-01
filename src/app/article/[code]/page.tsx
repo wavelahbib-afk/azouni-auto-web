@@ -6,18 +6,32 @@ import type { CatalogArticle } from "@/lib/types";
 import { formatMoney } from "@/lib/format";
 import { ArticleImage } from "@/components/ArticleImage";
 import { AddToCartButton } from "@/components/AddToCartButton";
+import { ArticleDetailPanels } from "@/components/ArticleDetailPanels";
 
 export const revalidate = 300;
 
 async function getArticle(code: string): Promise<CatalogArticle | null> {
-  const [data, equivRows] = await Promise.all([
+  const [data, equivRows, vehicleRows] = await Promise.all([
     supabaseRest(`articles_catalogue?select=*&code=eq.${encodeURIComponent(code)}&limit=1`, revalidate) as Promise<CatalogArticle[] | null>,
     supabaseRest(`article_equivalences_catalogue?select=equivalent_reference&code=eq.${encodeURIComponent(code)}`, revalidate) as Promise<
       { equivalent_reference: string }[] | null
     >,
+    supabaseRest(`article_vehicle_compat_catalogue?select=make,model&code=eq.${encodeURIComponent(code)}`, revalidate) as Promise<
+      { make: string; model: string }[] | null
+    >,
   ]);
   if (!data || data.length === 0) return null;
-  return { ...data[0], equivalences: (equivRows ?? []).map((r) => r.equivalent_reference) };
+  const vehicleCompat = new Map<string, string[]>();
+  for (const r of vehicleRows ?? []) {
+    const list = vehicleCompat.get(r.make);
+    if (list) list.push(r.model);
+    else vehicleCompat.set(r.make, [r.model]);
+  }
+  return {
+    ...data[0],
+    equivalences: (equivRows ?? []).map((r) => r.equivalent_reference),
+    vehicleCompat: Array.from(vehicleCompat, ([make, models]) => ({ make, models })),
+  };
 }
 
 export default async function ArticlePage({ params }: PageProps<"/article/[code]">) {
@@ -82,18 +96,7 @@ export default async function ArticlePage({ params }: PageProps<"/article/[code]
           <p className="text-3xl font-extrabold text-brand mb-6">{formatMoney(article.prix_vente_ttc)}</p>
           <AddToCartButton article={article} />
 
-          {article.equivalences && article.equivalences.length > 0 && (
-            <div className="mt-8 pt-6 border-t border-slate-200">
-              <h2 className="text-sm font-semibold text-slate-700 mb-2.5">Références équivalentes / d&apos;origine</h2>
-              <div className="flex flex-wrap gap-2">
-                {article.equivalences.map((ref) => (
-                  <span key={ref} className="text-xs font-mono bg-slate-100 text-slate-600 px-2.5 py-1 rounded-full">
-                    {ref}
-                  </span>
-                ))}
-              </div>
-            </div>
-          )}
+          <ArticleDetailPanels equivalences={article.equivalences ?? []} vehicleCompat={article.vehicleCompat ?? []} />
         </div>
       </div>
     </div>

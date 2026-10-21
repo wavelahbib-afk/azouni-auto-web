@@ -38,8 +38,15 @@ export default function PanierPage() {
         {lines.map((l) => (
           <div key={l.code} className="flex items-center gap-3 p-4">
             <div className="flex-1 min-w-0">
-              <p className="text-sm font-semibold text-slate-800 truncate">{l.designation}</p>
-              {l.marque && <p className="text-xs text-slate-500">{l.marque}</p>}
+              <Link href={`/article/${encodeURIComponent(l.code)}`} className="block text-sm font-semibold text-slate-800 hover:text-brand transition-colors line-clamp-2">
+                {l.designation}
+              </Link>
+              <p className="text-xs text-slate-500 truncate">
+                {l.marque && <span className="font-semibold uppercase tracking-wide">{l.marque}</span>}
+                {l.marque && l.reference && ' · '}
+                {l.reference && <span className="font-mono">Réf. {l.reference}</span>}
+              </p>
+              <p className="text-xs text-slate-400">{formatMoney(l.prix_vente_ttc)} l&apos;unité</p>
             </div>
             <input
               type="number"

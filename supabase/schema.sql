@@ -19,6 +19,10 @@ create table if not exists articles_catalogue (
   prix_vente_ttc numeric not null default 0,
   stock_qty numeric not null default 0,
   rayon text,
+  -- Nom propre de la piece ("ROTULE DE DIRECTION DROITE") et vehicules cites dans la designation d'origine : remplis par la synchro quand
+  -- AZOUNI AUTO les connait (voir supabase/ajout_designation_correcte.sql pour une base DEJA creee). Le site affiche la designation d'origine tant qu'ils sont vides.
+  designation_correcte text,
+  vehicules_compatibles text,
   -- URL publique de la photo (bucket de stockage "article-photos"), remplie
   -- par la synchro seulement si l'article a une photo ET qu'elle a ete
   -- retrouvee sur le disque -- null sinon (icone generique cote site).

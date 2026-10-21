@@ -17,9 +17,10 @@ const geistMono = Geist_Mono({
 const shopName = process.env.NEXT_PUBLIC_SHOP_NAME || "AZOUNI AUTO";
 
 export const metadata: Metadata = {
-  title: shopName,
-  description: `${shopName} - Pieces de rechange automobile, catalogue en ligne`,
+  title: { default: `${shopName} – Pièces détachées automobiles`, template: `%s | ${shopName}` },
+  description: `${shopName} - Pièces de rechange automobile en stock, catalogue en ligne et commande par WhatsApp`,
   icons: { icon: "/logo.png" },
+  openGraph: { siteName: shopName, locale: "fr_TN", type: "website" },
 };
 
 export default function RootLayout({ children }: LayoutProps<"/">) {

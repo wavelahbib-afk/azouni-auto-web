@@ -2,6 +2,7 @@
 
 import { useCallback, useSyncExternalStore } from 'react';
 import type { CartLine, CatalogArticle } from './types';
+import { articleRef, articleTitle } from './display';
 
 const STORAGE_KEY = 'azouni_cart';
 
@@ -72,7 +73,10 @@ export function useCart() {
     if (existing) {
       setCart(cartState.map((l) => (l.code === article.code ? { ...l, qty: l.qty + qty } : l)));
     } else {
-      setCart([...cartState, { code: article.code, designation: article.designation, marque: article.marque, prix_vente_ttc: article.prix_vente_ttc, qty }]);
+      setCart([
+        ...cartState,
+        { code: article.code, designation: articleTitle(article), reference: articleRef(article), marque: article.marque, prix_vente_ttc: article.prix_vente_ttc, qty },
+      ]);
     }
   }, []);
 

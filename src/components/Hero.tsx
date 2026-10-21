@@ -16,7 +16,7 @@ export function Hero({ articleCount }: { articleCount: number }) {
       <div className="relative max-w-6xl mx-auto px-4 py-16 sm:py-20 text-center">
         <h1 className="text-3xl sm:text-4xl font-extrabold text-white tracking-tight">{shopName}</h1>
         <p className="mt-3 text-brand-soft/90 text-base sm:text-lg max-w-xl mx-auto">
-          Pièces détachées automobiles de qualité, {articleCount > 0 ? `plus de ${articleCount} références` : 'un large catalogue'} disponibles
+          Pièces détachées automobiles de qualité : {articleCount > 0 ? `${articleCount.toLocaleString('fr-FR')} références` : 'un large catalogue'} disponibles
           en stock.
         </p>
         <Link

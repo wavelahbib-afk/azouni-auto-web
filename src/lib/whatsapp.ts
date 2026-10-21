@@ -29,11 +29,16 @@ export function buildOrderMessage(shopName: string, lines: CartLine[]): string {
   const total = lines.reduce((sum, l) => sum + l.prix_vente_ttc * l.qty, 0);
   const body = [
     `*Nouvelle commande - ${shopName}*`,
-    ...lines.map((l) => `- ${l.designation}${l.marque ? ` (${l.marque})` : ''} x${l.qty} - ${formatMoney(l.prix_vente_ttc * l.qty)}`),
+    ...lines.map((l) => `- ${l.designation}${l.marque ? ` (${l.marque})` : ''}${l.reference ? ` - Réf. ${l.reference}` : ''} x${l.qty} - ${formatMoney(l.prix_vente_ttc * l.qty)}`),
     '',
     `*Total estimatif : ${formatMoney(total)}*`,
     '',
     'Merci de confirmer la disponibilite et le mode de retrait/livraison.',
   ];
   return body.join('\n');
+}
+
+/** Message pour demander le prix ou une precision sur UN article (articles sans prix, bouton "Poser une question"). */
+export function buildArticleQuestionMessage(shopName: string, title: string, reference: string, marque: string | null): string {
+  return [`Bonjour ${shopName},`, `Je souhaite connaitre le prix et la disponibilite de : ${title}${marque ? ` (${marque})` : ''} - Réf. ${reference}.`, 'Merci !'].join('\n');
 }

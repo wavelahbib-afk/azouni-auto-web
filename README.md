@@ -56,6 +56,19 @@ vide tant qu'aucune synchronisation n'a ete faite depuis AZOUNI AUTO (bouton
    Un nom de domaine payant (ex. `.tn`) pourra etre branche plus tard sans
    changement de code, dans **Project Settings > Domains**.
 
+## 5. Designation correcte des articles
+
+Le site affiche le **nom propre de la piece** ("Rotule de direction droite") et les vehicules
+cites ("Fiesta IV Puma"), calcules/valides dans AZOUNI AUTO, au lieu des abreviations de saisie
+("RT DIR D FIESTA IV PUMA"). La designation d'origine reste visible dans la fiche article.
+
+- Sur une base Supabase **deja creee**, executer **une fois** `supabase/ajout_designation_correcte.sql`
+  (SQL Editor > New query > Run). Sans cela la synchro fonctionne quand meme, mais sans ces 2 champs :
+  AZOUNI AUTO affiche un avertissement apres « Synchroniser maintenant » et le site garde la designation d'origine.
+- La synchro envoie la designation correcte enregistree (et non marquee « a verifier »), sinon celle que le
+  moteur de designation calcule quand il est sur de lui ; les articles « a verifier » gardent leur designation d'origine.
+- Affichage : `src/lib/display.ts` (casse francaise, accents, repli sur la designation d'origine).
+
 ## Ce qui n'est pas fait en V1 (volontairement)
 
 - Paiement en ligne / checkout : la commande se termine sur WhatsApp.
@@ -73,11 +86,12 @@ src/
     article/[code]/       Fiche article
     panier/                Panier (localStorage) + bouton "Commander via WhatsApp"
     layout.tsx             En-tete, commun a toutes les pages
-  components/               Header, ArticleCard, Catalogue (recherche/filtre), etc.
+  components/               Header, ArticleCard, Catalogue (recherche/tri/filtres), ArticleSections (fiche article), etc.
   lib/
     supabase.ts             Client Supabase (cle anon uniquement, lecture seule)
     cart.tsx                Panier (store partage + localStorage, useSyncExternalStore), pas de compte client
     whatsapp.ts              Lien wa.me + formatage du message de commande
+    display.ts              Titre/vehicules/reference affiches (designation correcte, casse francaise, accents)
     types.ts                 Formes de donnees (miroir de la table articles_catalogue)
 supabase/schema.sql          A coller dans Supabase (table + securite lecture/ecriture)
 ```

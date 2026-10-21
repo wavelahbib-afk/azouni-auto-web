@@ -7,6 +7,13 @@ export interface CatalogArticle {
   code: string;
   reference: string | null;
   designation: string;
+  /**
+   * Nom propre de la piece ("ROTULE DE DIRECTION DROITE"), calcule/valide dans AZOUNI AUTO. Absent (ou null) pour les articles pas encore corriges et tant que la base du
+   * site n'a pas la colonne : on affiche alors la designation d'origine -- voir src/lib/display.ts.
+   */
+  designation_correcte?: string | null;
+  /** Vehicules cites dans la designation d'origine ("FIESTA IV PUMA MAZDA 121"). */
+  vehicules_compatibles?: string | null;
   marque: string | null;
   famille: string | null;
   sous_famille: string | null;
@@ -18,13 +25,18 @@ export interface CatalogArticle {
   updated_at: string;
   /** References equivalentes/d'origine (article_equivalences_catalogue) -- absent tant que non chargees. */
   equivalences?: string[];
+  /** Page d'accueil seulement : references propres + equivalentes normalisees et collees par "|" (index de recherche, plus compact que la liste). */
+  refsIndex?: string;
   /** Vehicules compatibles (article_vehicle_compat_catalogue), groupes par marque -- absent tant que non charges. */
   vehicleCompat?: { make: string; models: string[] }[];
 }
 
 export interface CartLine {
   code: string;
+  /** Titre affiche (designation correcte mise en forme) -- voir articleTitle() dans src/lib/display.ts. */
   designation: string;
+  /** Reference de l'article, rappelee dans le message WhatsApp (absente des anciens paniers enregistres dans le navigateur). */
+  reference?: string;
   marque: string | null;
   prix_vente_ttc: number;
   qty: number;

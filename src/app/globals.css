@@ -113,3 +113,84 @@ body {
   scrollbar-color: #8a96a6 transparent;
   scroll-snap-type: x proximity;
 }
+
+/*
+ * Mouvement : defilement des photos du bandeau d'accueil, fondu enchaine des photos des carreaux de rayon, pignon qui tourne.
+ * Tout s'arrete pour les personnes qui ont demande moins d'animations (prefers-reduced-motion) : seules les premieres photos restent affichees.
+ */
+@keyframes marquee {
+  from {
+    transform: translateX(0);
+  }
+  to {
+    transform: translateX(-50%);
+  }
+}
+@keyframes marquee-rev {
+  from {
+    transform: translateX(-50%);
+  }
+  to {
+    transform: translateX(0);
+  }
+}
+.marquee-row {
+  display: flex;
+  width: max-content;
+  animation: marquee var(--dur, 70s) linear infinite;
+}
+.marquee-row.rev {
+  animation-name: marquee-rev;
+}
+.marquee-row:hover {
+  animation-play-state: paused;
+}
+
+/* 4 photos par carreau, 4 s chacune, fondu enchaine + leger zoom ; le retard de chaque photo est donne en ligne (--i) */
+@keyframes tile-fade {
+  0% {
+    opacity: 0;
+    transform: scale(1);
+  }
+  6% {
+    opacity: 1;
+  }
+  25% {
+    opacity: 1;
+  }
+  31% {
+    opacity: 0;
+    transform: scale(1.08);
+  }
+  100% {
+    opacity: 0;
+    transform: scale(1.08);
+  }
+}
+.tile-slide {
+  position: absolute;
+  inset: 0;
+  opacity: 0;
+  animation: tile-fade 16s linear infinite;
+  animation-delay: calc(var(--i, 0) * 4s - 1s);
+}
+
+@keyframes spin-slow {
+  to {
+    transform: rotate(360deg);
+  }
+}
+.tile-spin {
+  animation: spin-slow 24s linear infinite;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .marquee-row,
+  .tile-slide,
+  .tile-spin {
+    animation: none !important;
+  }
+  .tile-slide:first-child {
+    opacity: 1;
+  }
+}

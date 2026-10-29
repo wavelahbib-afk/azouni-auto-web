@@ -8,6 +8,8 @@ import { CategoryIcon } from './CategoryIcon';
 import { CarLogo } from './CarLogo';
 import { Eyebrow } from './Eyebrow';
 import { Gear } from './Gear';
+import { TileSlides } from './Showcase';
+import type { ShowcaseItem } from '@/lib/showcase';
 
 /** Rangee des constructeurs les plus presents dans le catalogue : un logo = ses pieces. Defile sur mobile. */
 export function BrandStrip({ makes }: { makes: VehicleMake[] }) {
@@ -38,8 +40,8 @@ export function BrandStrip({ makes }: { makes: VehicleMake[] }) {
   );
 }
 
-/** "Les rayons" : les categories du magasin, la premiere en grand (mise en page asymetrique), avec le nombre de pieces. */
-export function CategoryTiles({ counts }: { counts: Record<string, number> }) {
+/** "Les rayons" : les categories du magasin, la premiere en grand (mise en page asymetrique), chacune avec des photos de ses pieces qui defilent et le nombre de pieces. */
+export function CategoryTiles({ counts, tiles = {} }: { counts: Record<string, number>; tiles?: Record<string, ShowcaseItem[]> }) {
   const pieces = (n: number) => `${formatInt(n)} pièce${n > 1 ? 's' : ''}`;
   return (
     <section aria-labelledby="categories-title" className="max-w-7xl mx-auto px-4 py-14">
@@ -49,34 +51,46 @@ export function CategoryTiles({ counts }: { counts: Record<string, number> }) {
           Un rayon pour chaque panne.
         </h2>
       </div>
-      <div className="grid grid-cols-2 lg:grid-cols-4 lg:grid-rows-3 gap-3">
+      <div className="grid grid-cols-2 lg:grid-cols-4 gap-3">
         {CATEGORIES.map((c, i) => {
           const big = i === 0;
           const n = counts[c.slug] ?? 0;
           const num = String(i + 1).padStart(2, '0');
+          const photos = tiles[c.slug] ?? [];
+          // le rayon "Transmission" montre un pignon qui tourne a la place de l'icone
+          const icon =
+            c.slug === 'transmission' ? <Gear className="tile-spin h-8 w-8 text-slate-400 group-hover:text-brand transition-colors" teeth={9} /> : <CategoryIcon icon={c.icon} size={26} className="text-slate-400 group-hover:text-brand transition-colors" />;
           if (big) {
             return (
               <Link
                 key={c.slug}
                 href={`/catalogue?categorie=${c.slug}`}
-                className="group relative col-span-2 lg:row-span-2 overflow-hidden rounded-lg bg-ink text-white p-6 sm:p-8 min-h-[16rem] flex flex-col justify-between"
+                className="group relative col-span-2 lg:row-span-2 overflow-hidden rounded-lg bg-ink text-white flex flex-col sm:flex-row min-h-[18rem]"
               >
                 <div className="absolute inset-0 blueprint" aria-hidden="true" />
-                <Gear className="absolute -right-16 -bottom-20 w-72 h-72 text-white/[0.07] group-hover:text-volt/25 transition-colors duration-500" teeth={10} />
-                <div className="relative flex items-start justify-between">
-                  <span className="font-display font-bold text-sm tracking-[0.2em] uppercase text-volt">Rayon {num}</span>
-                  <CategoryIcon icon={c.icon} size={44} className="text-volt" />
+                <div className="relative flex flex-1 flex-col justify-between p-6 sm:p-8">
+                  <div className="flex items-start justify-between">
+                    <span className="font-display font-bold text-sm tracking-[0.2em] uppercase text-volt">Rayon {num}</span>
+                    <CategoryIcon icon={c.icon} size={36} className="text-volt" />
+                  </div>
+                  <div className="mt-8">
+                    <h3 className="font-display font-extrabold uppercase text-5xl sm:text-6xl leading-[0.95] chrome-text">{c.label}</h3>
+                    <p className="mt-3 text-slate-300 max-w-sm text-sm leading-relaxed">{c.blurb}</p>
+                    <p className="mt-4 inline-flex items-center gap-3 font-display font-bold tracking-[0.12em] uppercase text-[15px] text-white">
+                      {pieces(n)}
+                      <span className="inline-flex items-center gap-1 text-volt group-hover:gap-2.5 transition-all">
+                        Entrer <ArrowRight size={16} />
+                      </span>
+                    </p>
+                  </div>
                 </div>
-                <div className="relative">
-                  <h3 className="font-display font-extrabold uppercase text-5xl sm:text-6xl leading-[0.95] chrome-text">{c.label}</h3>
-                  <p className="mt-3 text-slate-300 max-w-sm text-sm leading-relaxed">{c.blurb}</p>
-                  <p className="mt-4 inline-flex items-center gap-3 font-display font-bold tracking-[0.12em] uppercase text-[15px] text-white">
-                    {pieces(n)}
-                    <span className="inline-flex items-center gap-1 text-volt group-hover:gap-2.5 transition-all">
-                      Entrer <ArrowRight size={16} />
-                    </span>
-                  </p>
-                </div>
+                {photos.length > 0 ? (
+                  <div className="relative h-52 sm:h-auto sm:w-[48%] shrink-0 overflow-hidden bg-white">
+                    <TileSlides items={photos} />
+                  </div>
+                ) : (
+                  <Gear className="absolute -right-16 -bottom-20 w-72 h-72 text-white/[0.07] group-hover:text-volt/25 transition-colors duration-500" teeth={10} />
+                )}
               </Link>
             );
           }
@@ -84,16 +98,27 @@ export function CategoryTiles({ counts }: { counts: Record<string, number> }) {
             <Link
               key={c.slug}
               href={`/catalogue?categorie=${c.slug}`}
-              className="group relative overflow-hidden rounded-lg bg-white border border-slate-200 p-4 sm:p-5 min-h-[9.5rem] flex flex-col justify-between hover:border-brand hover:shadow-lg hover:-translate-y-0.5 transition-all"
+              className="group relative overflow-hidden rounded-lg bg-white border border-slate-200 flex flex-col hover:border-brand hover:shadow-lg hover:-translate-y-0.5 transition-all"
             >
-              <span className="absolute left-0 top-0 bottom-0 w-1 bg-brand scale-y-0 origin-top group-hover:scale-y-100 transition-transform" aria-hidden="true" />
-              <div className="flex items-start justify-between">
-                <span className="font-display font-extrabold text-4xl leading-none text-slate-200 group-hover:text-brand transition-colors">{num}</span>
-                <CategoryIcon icon={c.icon} size={26} className="text-slate-400 group-hover:text-brand transition-colors" />
-              </div>
-              <div>
-                <h3 className="font-display font-bold uppercase text-xl leading-tight text-ink">{c.label}</h3>
-                <p className="mt-1 text-xs text-slate-500">{pieces(n)}</p>
+              <span className="absolute left-0 top-0 bottom-0 z-10 w-1 bg-brand scale-y-0 origin-top group-hover:scale-y-100 transition-transform" aria-hidden="true" />
+              {photos.length > 0 && (
+                <div className="relative aspect-[4/3] overflow-hidden border-b border-slate-100 bg-white">
+                  <TileSlides items={photos} />
+                  <span className="chamfer-sm absolute left-0 top-0 z-10 bg-ink px-2.5 py-1 font-display font-bold text-sm leading-none text-white">{num}</span>
+                </div>
+              )}
+              <div className={`flex flex-1 ${photos.length > 0 ? 'items-end justify-between gap-2 p-3.5 sm:p-4' : 'flex-col justify-between p-4 sm:p-5 min-h-[9.5rem]'}`}>
+                {photos.length === 0 && (
+                  <div className="flex items-start justify-between">
+                    <span className="font-display font-extrabold text-4xl leading-none text-slate-200 group-hover:text-brand transition-colors">{num}</span>
+                    {icon}
+                  </div>
+                )}
+                <div className="min-w-0">
+                  <h3 className="font-display font-bold uppercase text-xl leading-tight text-ink">{c.label}</h3>
+                  <p className="mt-1 text-xs text-slate-500">{pieces(n)}</p>
+                </div>
+                {photos.length > 0 && <span className="shrink-0 self-start mt-0.5">{icon}</span>}
               </div>
             </Link>
           );

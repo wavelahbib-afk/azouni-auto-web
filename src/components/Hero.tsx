@@ -4,7 +4,8 @@ import { DELIVERY, SHOP } from '@/lib/shop';
 import { formatDt, formatInt } from '@/lib/format';
 import type { VehicleMake } from '@/lib/vehicles';
 import { Eyebrow } from './Eyebrow';
-import { Gear } from './Gear';
+import { HeroShowcase } from './Showcase';
+import type { ShowcaseItem } from '@/lib/showcase';
 import { VehicleSelector } from './VehicleSelector';
 
 /** Recherches les plus courantes d'un magasin de pieces : un clic mene au catalogue deja filtre. */
@@ -19,7 +20,7 @@ const QUICK = [
 
 function Stat({ value, label }: { value: string; label: string }) {
   return (
-    <div className="chamfer bg-white/[0.04] border-l-2 border-volt px-5 py-4">
+    <div className="chamfer bg-ink/80 backdrop-blur-sm border-l-2 border-volt px-5 py-4">
       <p className="font-display font-extrabold text-4xl sm:text-5xl leading-none text-white">{value}</p>
       <p className="mt-2 text-[13px] text-slate-400 leading-snug">{label}</p>
     </div>
@@ -27,12 +28,14 @@ function Stat({ value, label }: { value: string; label: string }) {
 }
 
 /** Bandeau d'accueil sombre : accroche, "console" de recherche (voiture ou pieces courantes) et trois chiffres du magasin. */
-export function Hero({ articleCount, makes }: { articleCount: number; makes: VehicleMake[] }) {
+export function Hero({ articleCount, makes, showcase = [] }: { articleCount: number; makes: VehicleMake[]; showcase?: ShowcaseItem[] }) {
   return (
     <section className="relative overflow-hidden bg-ink text-white">
-      <div className="absolute inset-0 blueprint" aria-hidden="true" />
+      {/* fond : photos d'articles avec leur prix qui defilent, puis degrades qui laissent le texte lisible */}
+      <HeroShowcase items={showcase} />
+      <div className="pointer-events-none absolute inset-0 bg-gradient-to-r from-ink from-20% via-ink/75 via-48% to-transparent max-lg:from-ink/90 max-lg:via-ink/80 max-lg:to-ink/65" aria-hidden="true" />
+      <div className="pointer-events-none absolute inset-0 bg-gradient-to-t from-ink/90 via-transparent to-ink/35" aria-hidden="true" />
       <div className="absolute -left-40 top-1/3 w-[40rem] h-[40rem] rounded-full bg-brand/25 blur-[120px]" aria-hidden="true" />
-      <Gear className="absolute -right-32 -top-40 w-[34rem] h-[34rem] text-white/[0.06] hidden sm:block" teeth={14} />
 
       <div className="relative max-w-7xl mx-auto px-4 pt-12 sm:pt-16 pb-14 sm:pb-20 grid gap-10 lg:grid-cols-[minmax(0,1.7fr)_minmax(0,1fr)] items-end">
         <div>

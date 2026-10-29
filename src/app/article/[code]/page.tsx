@@ -2,21 +2,27 @@ import { cache } from "react";
 import type { Metadata } from "next";
 import Link from "next/link";
 import { notFound } from "next/navigation";
-import { ChevronRight, CheckCircle2, XCircle, Car, MessageCircle, ShieldCheck, Wallet } from "lucide-react";
+import { CheckCircle2, XCircle, Car, MessageCircle, ShieldCheck, Truck } from "lucide-react";
 import { supabaseRest } from "@/lib/supabase";
+import { getCatalogue } from "@/lib/catalogue-data";
 import type { CatalogArticle } from "@/lib/types";
-import { formatMoney } from "@/lib/format";
-import { articleRef, articleTitle, articleVehicles, hasCorrectedTitle, hasPrice, rawDesignation } from "@/lib/display";
+import { formatDt, formatMoney } from "@/lib/format";
+import { articleRef, articleTitle, articleVehicles, effectivePrice, hasCorrectedTitle, hasPrice, promoPercent, promoPrice, rawDesignation } from "@/lib/display";
+import { articleCategory, categoryBySlug } from "@/lib/categories";
 import { buildArticleQuestionMessage, buildWhatsAppLink } from "@/lib/whatsapp";
+import { DELIVERY, SHOP, siteUrl } from "@/lib/shop";
 import { ArticleImage } from "@/components/ArticleImage";
+import { ArticleCard } from "@/components/ArticleCard";
 import { AddToCartButton } from "@/components/AddToCartButton";
+import { Breadcrumbs } from "@/components/Breadcrumbs";
 import { CopyButton } from "@/components/CopyButton";
 import { OriginRefsSection, SpecsSection, VehiclesSection, type SpecRow, type VehicleGroup } from "@/components/ArticleSections";
 
+import { Eyebrow } from "@/components/Eyebrow";
 export const revalidate = 300;
 
-const shopName = process.env.NEXT_PUBLIC_SHOP_NAME || "AZOUNI AUTO";
-const shopWhatsapp = process.env.NEXT_PUBLIC_SHOP_WHATSAPP || "";
+const shopName = SHOP.name;
+const shopWhatsapp = SHOP.whatsapp;
 
 // cache() : la page et generateMetadata lisent le meme article sans refaire les 3 requetes.
 const getArticle = cache(async (code: string): Promise<CatalogArticle | null> => {
@@ -53,16 +59,28 @@ export async function generateMetadata({ params }: PageProps<"/article/[code]">)
   const description = [
     `${title}${article.marque ? ` ${article.marque}` : ""}, réf. ${ref}.`,
     vehicles ? `Pour ${vehicles}.` : "",
-    hasPrice(article) ? `${formatMoney(article.prix_vente_ttc)} TTC.` : "",
-    `En stock chez ${shopName}, commande simple par WhatsApp.`,
+    hasPrice(article) ? `${formatMoney(effectivePrice(article))} TTC.` : "",
+    `En stock chez ${shopName} (${SHOP.address.region}), livraison possible.`,
   ]
     .filter(Boolean)
     .join(" ");
   return {
     title: `${title}${article.marque ? ` ${article.marque}` : ""} – Réf. ${ref}`,
     description,
+    alternates: { canonical: `/article/${encodeURIComponent(article.code)}` },
     openGraph: { title: `${title} – ${shopName}`, description, type: "website", images: article.photo_url ? [article.photo_url] : undefined },
   };
+}
+
+/** Pieces proches de celle-ci : meme categorie, de preference la meme marque ; en stock et avec un prix. */
+async function getRelated(article: CatalogArticle, categorySlug: string): Promise<CatalogArticle[]> {
+  const all = await getCatalogue();
+  const candidates = all.filter((a) => a.code !== article.code && a.categorie === categorySlug && a.stock_qty > 0 && hasPrice(a));
+  const sameBrand = article.marque ? candidates.filter((a) => a.marque === article.marque) : [];
+  const others = candidates.filter((a) => !sameBrand.includes(a));
+  // le catalogue est trie par designation : une tranche autour de la piece donne des voisines de meme nature, sans hasard (page generee une fois, mise en cache)
+  const start = Math.max(0, others.findIndex((a) => a.designation.localeCompare(article.designation, "fr") >= 0) - 2);
+  return [...sameBrand.slice(0, 4), ...others.slice(start, start + 4)].slice(0, 4);
 }
 
 export default async function ArticlePage({ params }: PageProps<"/article/[code]">) {
@@ -74,6 +92,11 @@ export default async function ArticlePage({ params }: PageProps<"/article/[code]
   const vehicles = articleVehicles(article);
   const ref = articleRef(article);
   const priced = hasPrice(article);
+  const promo = promoPrice(article);
+  const percent = promoPercent(article);
+  const categorySlug = articleCategory(article);
+  const category = categoryBySlug(categorySlug);
+  const related = await getRelated(article, categorySlug);
   const inStock = article.stock_qty > 0;
   const raw = rawDesignation(article);
   const vehicleGroups: VehicleGroup[] = article.vehicleCompat ?? [];
@@ -102,37 +125,44 @@ export default async function ArticlePage({ params }: PageProps<"/article/[code]
     description: vehicles ? `${title} pour ${vehicles}` : title,
     offers: {
       "@type": "Offer",
+      url: `${siteUrl()}/article/${encodeURIComponent(article.code)}`,
       priceCurrency: "TND",
-      ...(priced ? { price: article.prix_vente_ttc.toFixed(3) } : {}),
+      ...(priced ? { price: effectivePrice(article).toFixed(3) } : {}),
       availability: inStock ? "https://schema.org/InStock" : "https://schema.org/OutOfStock",
       itemCondition: "https://schema.org/NewCondition",
     },
+  };
+
+  const crumbs = [
+    { label: "Accueil", href: "/" },
+    { label: "Catalogue", href: "/catalogue" },
+    ...(category ? [{ label: category.label, href: `/catalogue?categorie=${category.slug}` }] : []),
+    { label: title },
+  ];
+  const breadcrumbJsonLd = {
+    "@context": "https://schema.org",
+    "@type": "BreadcrumbList",
+    itemListElement: crumbs.map((c, i) => ({
+      "@type": "ListItem",
+      position: i + 1,
+      name: c.label,
+      ...(c.href ? { item: `${siteUrl()}${c.href}` } : {}),
+    })),
   };
 
   return (
     <div className="max-w-6xl mx-auto px-4 py-8">
       <script type="application/ld+json" dangerouslySetInnerHTML={{ __html: JSON.stringify(jsonLd).replace(/</g, "\\u003c") }} />
 
-      <nav aria-label="Fil d'Ariane" className="flex flex-wrap items-center gap-1.5 text-xs text-slate-400 mb-6">
-        <Link href="/" className="hover:text-brand transition-colors">
-          Catalogue
-        </Link>
-        <ChevronRight size={12} />
-        {article.famille && (
-          <>
-            <span>{article.famille}</span>
-            <ChevronRight size={12} />
-          </>
-        )}
-        <span className="text-slate-600 truncate max-w-[60vw]" aria-current="page">
-          {title}
-        </span>
-      </nav>
+      <script type="application/ld+json" dangerouslySetInnerHTML={{ __html: JSON.stringify(breadcrumbJsonLd).replace(/</g, "\\u003c") }} />
+
+      <Breadcrumbs items={crumbs} className="mb-6" />
 
       <div className="grid lg:grid-cols-[minmax(0,5fr)_minmax(0,6fr)] gap-8 lg:gap-12">
         <div>
-          <div className="lg:sticky lg:top-24">
+          <div className="lg:sticky lg:top-40 relative">
             <ArticleImage photoUrl={article.photo_url} alt={title} className="w-full aspect-square rounded-2xl border border-slate-200" />
+            {percent !== null && <span className="chamfer-sm absolute top-0 left-0 bg-amber-400 text-ink font-display font-extrabold text-2xl leading-none pl-3.5 pr-5 py-2.5">−{percent}%</span>}
           </div>
         </div>
 
@@ -159,12 +189,12 @@ export default async function ArticlePage({ params }: PageProps<"/article/[code]
               <CopyButton text={ref} label="Copier la référence" />
             </span>
             {inStock ? (
-              <span className="inline-flex items-center gap-1.5 text-xs font-semibold text-green-700 bg-green-50 px-2.5 py-1 rounded-full">
+              <span className="inline-flex items-center gap-1.5 text-xs font-semibold text-green-700 bg-green-50 px-2.5 py-1 rounded">
                 <CheckCircle2 size={13} />
                 En stock
               </span>
             ) : (
-              <span className="inline-flex items-center gap-1.5 text-xs font-semibold text-red-700 bg-red-50 px-2.5 py-1 rounded-full">
+              <span className="inline-flex items-center gap-1.5 text-xs font-semibold text-red-700 bg-red-50 px-2.5 py-1 rounded">
                 <XCircle size={13} />
                 Rupture de stock
               </span>
@@ -173,9 +203,10 @@ export default async function ArticlePage({ params }: PageProps<"/article/[code]
 
           <div className="mt-6 rounded-2xl border border-slate-200 bg-white p-5 sm:p-6 shadow-sm">
             {priced ? (
-              <p className="flex items-baseline gap-2">
-                <span className="text-3xl sm:text-4xl font-extrabold text-brand">{formatMoney(article.prix_vente_ttc)}</span>
+              <p className="flex flex-wrap items-baseline gap-x-3 gap-y-1">
+                <span className={`font-display text-5xl sm:text-6xl font-extrabold leading-none ${promo !== null ? "text-red-600" : "text-ink"}`}>{formatMoney(effectivePrice(article))}</span>
                 <span className="text-sm font-semibold text-slate-400">TTC</span>
+                {promo !== null && <span className="text-lg text-slate-400 line-through">{formatMoney(article.prix_vente_ttc)}</span>}
               </p>
             ) : (
               <p className="text-2xl font-extrabold text-slate-700">Prix sur demande</p>
@@ -188,7 +219,7 @@ export default async function ArticlePage({ params }: PageProps<"/article/[code]
                   href={questionLink}
                   target="_blank"
                   rel="noopener noreferrer"
-                  className={`inline-flex items-center gap-2 px-6 py-3 rounded-full font-semibold text-sm transition-colors ${
+                  className={`inline-flex items-center gap-2 px-6 py-3 rounded font-display font-bold text-[15px] tracking-[0.1em] uppercase transition-colors ${
                     priced && inStock
                       ? "border border-green-600 text-green-700 hover:bg-green-50"
                       : "bg-green-600 text-white hover:bg-green-700 shadow-sm"
@@ -206,8 +237,13 @@ export default async function ArticlePage({ params }: PageProps<"/article/[code]
                 Prix et disponibilité confirmés par le magasin avant toute commande.
               </li>
               <li className="flex items-start gap-2.5">
-                <Wallet size={16} className="mt-0.5 shrink-0 text-brand" aria-hidden="true" />
-                Aucun paiement en ligne : vous réglez au magasin.
+                <Truck size={16} className="mt-0.5 shrink-0 text-brand" aria-hidden="true" />
+                <span>
+                  Livraison {formatDt(DELIVERY.fee)}, gratuite dès {DELIVERY.freeFrom} DT d&apos;achat, ou retrait gratuit au magasin. Paiement à la réception.{" "}
+                  <Link href="/livraison-paiement" className="font-semibold text-brand hover:underline">
+                    En savoir plus
+                  </Link>
+                </span>
               </li>
             </ul>
           </div>
@@ -219,6 +255,20 @@ export default async function ArticlePage({ params }: PageProps<"/article/[code]
         {(vehicles || vehicleGroups.length > 0) && <VehiclesSection cited={vehicles} groups={vehicleGroups} />}
         {equivalences.length > 0 && <OriginRefsSection refs={equivalences} />}
       </div>
+
+      {related.length > 0 && (
+        <section className="mt-14" aria-labelledby="related-title">
+          <Eyebrow className="mb-1.5">{category?.label ?? "Catalogue"}</Eyebrow>
+          <h2 id="related-title" className="text-2xl font-extrabold text-slate-900 tracking-tight mb-5">
+            Dans la même catégorie
+          </h2>
+          <div className="grid grid-cols-2 lg:grid-cols-4 gap-3 sm:gap-4">
+            {related.map((a) => (
+              <ArticleCard key={a.code} article={a} />
+            ))}
+          </div>
+        </section>
+      )}
     </div>
   );
 }

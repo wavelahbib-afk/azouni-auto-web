@@ -1,7 +1,8 @@
 # azouni-auto-web
 
-Site vitrine public d'AZOUNI AUTO : catalogue en ligne (recherche, panier)
-avec commande finale par WhatsApp -- pas de paiement en ligne. Projet separe
+Site vitrine public d'AZOUNI AUTO : catalogue en ligne (recherche, filtres par categorie / marque /
+vehicule / prix, promotions), panier et commande (retrait au magasin ou livraison) transmise au magasin
+et a WhatsApp -- pas de paiement en ligne (paiement a la reception). Projet separe
 de l'application de bureau `azouni-auto` ; les deux communiquent uniquement
 via la base Supabase (voir ci-dessous).
 
@@ -30,9 +31,9 @@ cp .env.example .env.local
 Remplir `.env.local` :
 
 - `NEXT_PUBLIC_SUPABASE_URL` / `NEXT_PUBLIC_SUPABASE_ANON_KEY` (etape 1)
-- `NEXT_PUBLIC_SHOP_NAME` : affiche dans l'en-tete et le message WhatsApp
-- `NEXT_PUBLIC_SHOP_WHATSAPP` : numero qui recoit les commandes (format
-  international sans "+", ex. `21622437815`)
+- Les informations du magasin (nom, telephone, adresse, frais de livraison...) ont des valeurs par defaut dans
+  `src/lib/shop.ts` ; chacune peut etre remplacee par une variable `NEXT_PUBLIC_*` (voir `.env.example`),
+  par exemple `NEXT_PUBLIC_SHOP_HOURS` pour afficher les horaires (masques tant qu'ils ne sont pas renseignes).
 
 ## 3. Lancer en developpement
 
@@ -69,12 +70,25 @@ cites ("Fiesta IV Puma"), calcules/valides dans AZOUNI AUTO, au lieu des abrevia
   moteur de designation calcule quand il est sur de lui ; les articles « a verifier » gardent leur designation d'origine.
 - Affichage : `src/lib/display.ts` (casse francaise, accents, repli sur la designation d'origine).
 
-## Ce qui n'est pas fait en V1 (volontairement)
+## 6. Fonctions du site (categories, vehicules, commandes, promotions)
 
-- Paiement en ligne / checkout : la commande se termine sur WhatsApp.
-- Vraies photos d'articles : `photo_path` (AZOUNI AUTO) est un fichier local,
-  non accessible depuis le web -- icones generiques par famille pour
-  l'instant.
+Executer **une fois** `supabase/ajout_fonctions_site.sql` (SQL Editor > New query > Run) sur la base deja creee,
+puis dans AZOUNI AUTO : Parametres > Site web > « Synchroniser maintenant ». Il ajoute :
+
+- `articles_catalogue.categorie / en_vedette / prix_promo` : categories du site, articles mis en avant et prix promotionnels
+  (cases de la fiche article d'AZOUNI AUTO) ;
+- `vehicules_catalogue` et `vehicules_articles_catalogue` : selecteur de vehicule et filtre « pieces compatibles » ;
+- `commandes_web` : commandes passees sur le site (le visiteur peut seulement en AJOUTER ; AZOUNI AUTO les lit avec la cle
+  service_role, page **Commandes web**) ;
+- `recherches_web` : termes cherches sans resultat (aucune donnee personnelle).
+
+Tant que ce script n'est pas execute, le site fonctionne quand meme (sans ces nouveautes) : categories deduites du nom de la
+piece, selecteur de vehicule masque, commande envoyee par WhatsApp seulement.
+
+## Ce qui n'est pas fait (volontairement)
+
+- Paiement en ligne : la commande se regle a la reception (magasin ou livreur).
+- Version arabe, nom de domaine `.tn`, avis Google, retrait avec paiement anticipe.
 - Comptes clients / historique de commandes cote site.
 
 ## Architecture
@@ -82,16 +96,24 @@ cites ("Fiesta IV Puma"), calcules/valides dans AZOUNI AUTO, au lieu des abrevia
 ```
 src/
   app/
-    page.tsx              Accueil = catalogue (recherche + filtre famille)
-    article/[code]/       Fiche article
-    panier/                Panier (localStorage) + bouton "Commander via WhatsApp"
-    layout.tsx             En-tete, commun a toutes les pages
-  components/               Header, ArticleCard, Catalogue (recherche/tri/filtres), ArticleSections (fiche article), etc.
+    page.tsx                Accueil (bandeau, selecteur de vehicule, categories, promotions, magasin)
+    catalogue/              Catalogue : filtres dans l'adresse (?categorie=...&marque=...&vehicule=...&max=...&promo=1)
+    article/[code]/         Fiche article (prix promo, articles de la meme categorie, donnees structurees)
+    panier/                 Panier + formulaire de commande (retrait / livraison)
+    commande/merci/         Confirmation de commande
+    livraison-paiement/     Page d'information
+    contact/                Coordonnees, plan d'acces
+    sitemap.ts, robots.ts   Referencement
+    layout.tsx              Barre d'annonce, en-tete, pied de page, bouton WhatsApp
+  components/               Header, Footer, Catalogue, VehicleSelector, ArticleCard, CarLogo...
   lib/
-    supabase.ts             Client Supabase (cle anon uniquement, lecture seule)
-    cart.tsx                Panier (store partage + localStorage, useSyncExternalStore), pas de compte client
-    whatsapp.ts              Lien wa.me + formatage du message de commande
-    display.ts              Titre/vehicules/reference affiches (designation correcte, casse francaise, accents)
-    types.ts                 Formes de donnees (miroir de la table articles_catalogue)
-supabase/schema.sql          A coller dans Supabase (table + securite lecture/ecriture)
+    shop.ts                 Informations du magasin et regle de livraison
+    supabase.ts             Lecture Supabase (cle anon uniquement)
+    catalogue-data.ts       Catalogue et index des vehicules (mis en cache)
+    categoryRules.ts        Regles de categories -- COPIE IDENTIQUE de azouni-auto/shared/webCategoryRules.ts
+    orders.ts, searchLog.ts Enregistrement des commandes et des recherches sans resultat
+    carLogos.ts             Logos des constructeurs (Simple Icons, CC0) -- genere, ne pas modifier a la main
+supabase/
+  schema.sql                Tables de depart
+  ajout_designation_correcte.sql, ajout_fonctions_site.sql    Ajouts a executer une fois sur une base existante
 ```

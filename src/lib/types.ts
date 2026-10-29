@@ -20,6 +20,12 @@ export interface CatalogArticle {
   prix_vente_ttc: number;
   stock_qty: number;
   rayon: string | null;
+  /** Categorie du site ('freinage', 'filtration'...), calculee par l'application a la synchro d'apres le nom de la piece -- absente tant que la base du site n'a pas la colonne. */
+  categorie?: string | null;
+  /** Article mis en avant sur l'accueil du site (case "Mettre en avant" de la fiche article de l'application). */
+  en_vedette?: boolean | null;
+  /** Prix promotionnel TTC (inferieur au prix normal) : le site affiche l'ancien prix barre. Absent / null = pas de promotion. */
+  prix_promo?: number | null;
   /** URL publique de la photo (bucket Supabase "article-photos"), ou null si pas encore synchronisee -- voir webSyncService.ts. */
   photo_url: string | null;
   updated_at: string;
@@ -40,4 +46,11 @@ export interface CartLine {
   marque: string | null;
   prix_vente_ttc: number;
   qty: number;
+}
+
+/** Une ligne de l'index des vehicules (table vehicules_catalogue) : un modele d'un constructeur et le nombre d'articles compatibles. */
+export interface VehicleIndexRow {
+  make: string;
+  model: string;
+  nb: number;
 }

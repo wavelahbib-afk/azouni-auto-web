@@ -123,3 +123,20 @@ export function articleRef(a: Pick<CatalogArticle, 'reference' | 'code'>): strin
 export function hasPrice(a: Pick<CatalogArticle, 'prix_vente_ttc'>): boolean {
   return a.prix_vente_ttc > 0;
 }
+
+/** Prix promotionnel TTC si l'article est en promotion (prix promo renseigne, positif et inferieur au prix normal), sinon null. */
+export function promoPrice(a: Pick<CatalogArticle, 'prix_vente_ttc' | 'prix_promo'>): number | null {
+  const promo = Number(a.prix_promo ?? 0);
+  return promo > 0 && a.prix_vente_ttc > 0 && promo < a.prix_vente_ttc ? promo : null;
+}
+
+/** Prix a payer : le prix promotionnel s'il y en a un, sinon le prix de vente. */
+export function effectivePrice(a: Pick<CatalogArticle, 'prix_vente_ttc' | 'prix_promo'>): number {
+  return promoPrice(a) ?? a.prix_vente_ttc;
+}
+
+/** Pourcentage de remise arrondi (-15 pour 15 %), ou null hors promotion. */
+export function promoPercent(a: Pick<CatalogArticle, 'prix_vente_ttc' | 'prix_promo'>): number | null {
+  const promo = promoPrice(a);
+  return promo === null ? null : Math.max(1, Math.round((1 - promo / a.prix_vente_ttc) * 100));
+}

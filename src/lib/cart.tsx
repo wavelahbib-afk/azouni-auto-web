@@ -2,7 +2,7 @@
 
 import { useCallback, useSyncExternalStore } from 'react';
 import type { CartLine, CatalogArticle } from './types';
-import { articleRef, articleTitle } from './display';
+import { articleRef, articleTitle, effectivePrice } from './display';
 
 const STORAGE_KEY = 'azouni_cart';
 
@@ -75,7 +75,7 @@ export function useCart() {
     } else {
       setCart([
         ...cartState,
-        { code: article.code, designation: articleTitle(article), reference: articleRef(article), marque: article.marque, prix_vente_ttc: article.prix_vente_ttc, qty },
+        { code: article.code, designation: articleTitle(article), reference: articleRef(article), marque: article.marque, prix_vente_ttc: effectivePrice(article), qty },
       ]);
     }
   }, []);

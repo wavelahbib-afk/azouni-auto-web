@@ -11,7 +11,7 @@ export function AddToCartButton({ article }: { article: CatalogArticle }) {
 
   return (
     <button
-      className={`inline-flex items-center gap-2 px-6 py-3 rounded-full font-semibold text-sm shadow-sm transition-colors ${
+      className={`inline-flex items-center gap-2 px-6 py-3 rounded font-display font-bold text-[15px] tracking-[0.1em] uppercase shadow-sm transition-colors ${
         added ? 'bg-green-600 text-white' : 'bg-brand text-white hover:bg-brand-light'
       }`}
       onClick={() => {

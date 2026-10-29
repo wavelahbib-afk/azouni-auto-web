@@ -1,12 +1,48 @@
 @import "tailwindcss";
 
+/*
+ * Identite visuelle du site AZOUNI AUTO, tiree du logo : graphite, chrome (argent) et bleu electrique, avec ses "traits de vitesse".
+ * Coque sombre (en-tete, bandeau d'accueil, pied de page), contenu clair "beton" ; titres en capitales condensees, angles francs, coins coupes.
+ * Tout passe par ces variables : changer une couleur ici change tout le site.
+ */
 :root {
-  --background: #f8fafc;
-  --foreground: #0f172a;
-  /* Palette de marque AZOUNI AUTO (identique a l'application de bureau, tailwind.config.js). */
-  --brand: #0b3d91;
-  --brand-light: #1560bd;
-  --brand-soft: #e8f0fb;
+  --background: #eef1f5;
+  --foreground: #0d1117;
+  /* bleu electrique du logo, un peu assombri pour rester lisible en texte sur fond clair */
+  --brand: #1a5fe0;
+  --brand-light: #3b7dff;
+  --brand-soft: #e3ecff;
+  /* graphites de la coque sombre */
+  --ink: #090c11;
+  --ink-2: #0f141b;
+  --ink-3: #18202a;
+  --chrome: #e6ebf2;
+  /* bleu vif pour accents sur fond sombre */
+  --volt: #4f95ff;
+}
+
+@theme {
+  /* gris "acier" legerement bleutes a la place du gris ardoise par defaut */
+  --color-slate-50: #f3f5f8;
+  --color-slate-100: #e8ecf1;
+  --color-slate-200: #d8dee6;
+  --color-slate-300: #bcc5d1;
+  --color-slate-400: #8a96a6;
+  --color-slate-500: #667385;
+  --color-slate-600: #485466;
+  --color-slate-700: #333d4d;
+  --color-slate-800: #1d2530;
+  --color-slate-900: #10151d;
+  --color-slate-950: #090c11;
+
+  /* angles francs : les boutons et cartes ressemblent a des pieces usinees, pas a des bulles */
+  --radius-md: 0.2rem;
+  --radius-lg: 0.25rem;
+  --radius-xl: 0.3rem;
+  --radius-2xl: 0.4rem;
+  --radius-3xl: 0.5rem;
+
+  --tracking-tight: 0.005em;
 }
 
 @theme inline {
@@ -15,11 +51,65 @@
   --color-brand: var(--brand);
   --color-brand-light: var(--brand-light);
   --color-brand-soft: var(--brand-soft);
-  --font-sans: var(--font-geist-sans);
-  --font-mono: var(--font-geist-mono);
+  --color-ink: var(--ink);
+  --color-ink-2: var(--ink-2);
+  --color-ink-3: var(--ink-3);
+  --color-chrome: var(--chrome);
+  --color-volt: var(--volt);
+  --font-sans: var(--font-barlow);
+  --font-display: var(--font-barlow-cond);
+  --font-mono: var(--font-plex-mono);
 }
 
 body {
   background: var(--background);
   color: var(--foreground);
+}
+
+@layer base {
+  /* titres de section : capitales condensees */
+  h1,
+  h2 {
+    font-family: var(--font-display);
+    text-transform: uppercase;
+    font-weight: 700;
+    line-height: 1.05;
+  }
+}
+
+/* coin coupe (haut droit et bas gauche), pour les elements pleins : boutons, etiquettes, panneaux */
+@utility chamfer {
+  clip-path: polygon(0 0, calc(100% - 12px) 0, 100% 12px, 100% 100%, 12px 100%, 0 calc(100% - 12px));
+}
+@utility chamfer-sm {
+  clip-path: polygon(0 0, calc(100% - 7px) 0, 100% 7px, 100% 100%, 7px 100%, 0 calc(100% - 7px));
+}
+
+/* lettres chromees (titres sur fond sombre) */
+@utility chrome-text {
+  background-image: linear-gradient(180deg, #ffffff 15%, #8d9bb0 100%);
+  -webkit-background-clip: text;
+  background-clip: text;
+  color: transparent;
+}
+
+/* quadrillage de plan technique, tres discret */
+@utility blueprint {
+  background-image:
+    linear-gradient(to right, rgb(255 255 255 / 0.045) 1px, transparent 1px),
+    linear-gradient(to bottom, rgb(255 255 255 / 0.045) 1px, transparent 1px);
+  background-size: 44px 44px;
+}
+@utility blueprint-light {
+  background-image:
+    linear-gradient(to right, rgb(15 23 42 / 0.045) 1px, transparent 1px),
+    linear-gradient(to bottom, rgb(15 23 42 / 0.045) 1px, transparent 1px);
+  background-size: 28px 28px;
+}
+
+/* rangees de produits : defilement horizontal, barre fine */
+@utility rail {
+  scrollbar-width: thin;
+  scrollbar-color: #8a96a6 transparent;
+  scroll-snap-type: x proximity;
 }

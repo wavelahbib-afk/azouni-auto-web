@@ -96,3 +96,17 @@ export function readSavedVin(): string {
     return '';
   }
 }
+
+/** 8 premiers caracteres du VIN : constructeur et type de voiture, sans le numero de serie. Seule cette partie est envoyee au site pour la memoire des modeles. */
+export function vinPrefix(vin: string): string {
+  return vin.slice(0, 8);
+}
+
+export function isValidVinPrefix(prefix: string): boolean {
+  return /^[A-HJ-NPR-Z0-9]{8}$/.test(prefix);
+}
+
+/** Constructeur d'apres les 3 premiers caracteres, ou null. */
+export function makeFromWmi(prefix: string): string | null {
+  return WMI[prefix.slice(0, 3)] ?? null;
+}

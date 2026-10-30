@@ -5,7 +5,8 @@ import { useRouter } from 'next/navigation';
 import { Car, MessageCircle, ScanLine, Search } from 'lucide-react';
 import type { VehicleMake } from '@/lib/vehicles';
 import { makeLabel, modelLabel, vehicleParam } from '@/lib/vehicles';
-import { decodeVin, saveVin, type VinInfo } from '@/lib/vin';
+import { decodeVin, saveVin, vinPrefix, type VinInfo } from '@/lib/vin';
+import { fetchVinSuggestion, reportVinModel, type VinSuggestion } from '@/lib/vinClient';
 import { buildWhatsAppLink } from '@/lib/whatsapp';
 import { SHOP } from '@/lib/shop';
 
@@ -37,6 +38,8 @@ export function VehicleSelector({
   const [vinOpen, setVinOpen] = useState(false);
   const [vinText, setVinText] = useState('');
   const [vin, setVin] = useState<(VinInfo & { known: boolean }) | { error: string } | null>(null);
+  // modele appris des clients pour ce debut de VIN (memoire des VIN, voir lib/vinLearning.ts), quand il a ete applique
+  const [learned, setLearned] = useState<VinSuggestion | null>(null);
   const modelRef = useRef<HTMLSelectElement>(null);
   const models = makes.find((m) => m.make === make)?.models ?? [];
   const bar = variant === 'bar';
@@ -47,6 +50,8 @@ export function VehicleSelector({
 
   function submit() {
     if (!make) return;
+    // le client a donne un VIN puis choisi son modele : le site s'en souvient pour reconnaitre ce type de voiture ensuite (8 premiers caracteres seulement)
+    if (vin && 'vin' in vin && model) reportVinModel(vinPrefix(vin.vin), make, model);
     if (onSelect) onSelect(make, model);
     else router.push(model ? `/catalogue?vehicule=${encodeURIComponent(vehicleParam(make, model))}` : `/catalogue?constructeur=${encodeURIComponent(make)}`);
   }
@@ -61,11 +66,21 @@ export function VehicleSelector({
     saveVin(info.vin);
     const found = info.make ? makes.find((m) => m.make === info.make) : undefined;
     setVin({ ...info, known: Boolean(found) });
+    setLearned(null);
     if (found) {
       setMake(found.make);
       setModel('');
       setTimeout(() => modelRef.current?.focus(), 0);
     }
+    // modele deja appris pour ce type de voiture : applique tout de suite (le client le verifie, puis lance la recherche)
+    void fetchVinSuggestion(vinPrefix(info.vin)).then((s) => {
+      const known = s ? makes.find((m) => m.make === s.make)?.models.some((x) => x.model === s.model) : false;
+      if (s && known) {
+        setMake(s.make);
+        setModel(s.model);
+        setLearned(s);
+      }
+    });
   }
 
   const vinMessage =
@@ -153,7 +168,10 @@ export function VehicleSelector({
               Identifier
             </button>
           </div>
-          <p className="mt-1.5 text-[11px] text-slate-400">Lu dans votre navigateur : le numéro n&apos;est envoyé nulle part, sauf si vous choisissez WhatsApp.</p>
+          <p className="mt-1.5 text-[11px] text-slate-400">
+            Seuls les 8 premiers caractères (le type de voiture, pas la vôtre) servent à reconnaître le modèle ; le numéro complet reste dans votre navigateur et n&apos;est envoyé que si vous choisissez
+            WhatsApp.
+          </p>
 
           {vin && 'error' in vin && (
             <p role="alert" className="mt-2 text-xs text-red-700 bg-red-50 rounded px-2.5 py-2">
@@ -162,7 +180,14 @@ export function VehicleSelector({
           )}
           {vin && 'vin' in vin && (
             <div className="mt-2 rounded bg-brand-soft px-3 py-2.5 text-xs text-slate-700 space-y-1.5" aria-live="polite">
-              {vin.known && vin.make ? (
+              {learned ? (
+                <p>
+                  <strong className="text-ink">
+                    Modèle probable : {makeLabel(learned.make)} {modelLabel(learned.model)}
+                  </strong>{' '}
+                  (choisi par {learned.votes} client{learned.votes > 1 ? 's' : ''} avec le même début de numéro). Vérifiez-le sur votre carte grise, puis cliquez sur la recherche.
+                </p>
+              ) : vin.known && vin.make ? (
                 <p>
                   <strong className="text-ink">Constructeur reconnu : {makeLabel(vin.make)}</strong>
                   {vin.year ? ` · année indicative ${vin.year}` : ''}. <strong>Choisissez maintenant le modèle</strong> dans la liste.
@@ -172,7 +197,10 @@ export function VehicleSelector({
                   Le constructeur n&apos;est pas reconnu automatiquement : choisissez-le dans la liste, ou envoyez ce numéro à {SHOP.contactPerson} pour qu&apos;il vérifie.
                 </p>
               )}
-              <p className="text-slate-500">Le constructeur et l&apos;année sont lus dans le numéro à titre indicatif ; le modèle exact se choisit dans la liste.</p>
+              <p className="text-slate-500">
+                Le constructeur et l&apos;année sont lus dans le numéro à titre indicatif ; le modèle se choisit dans la liste. Quand vous le choisissez, le site s&apos;en souvient pour proposer ce modèle aux clients
+                suivants.
+              </p>
               <a
                 href={buildWhatsAppLink(SHOP.whatsapp, vinMessage)}
                 target="_blank"

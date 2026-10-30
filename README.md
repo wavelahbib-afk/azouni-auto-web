@@ -94,9 +94,15 @@ piece, selecteur de vehicule masque, commande envoyee par WhatsApp seulement.
   Sa reponse est toujours verifiee : constructeur et modele doivent exister dans le selecteur de vehicule, les mots doivent exister dans le catalogue. Seuls les mots de la
   recherche sont envoyes (numeros de 5 chiffres ou plus et e-mails retires). Limites : 40 recherches/minute et 8 appels IA/minute par visiteur, 400 appels IA/jour
   (`SEARCH_AI_DAILY_MAX`), reponses gardees 24 h ; si le fournisseur refuse (limite gratuite atteinte, erreur), le site continue avec les regles.
-- **VIN** (`src/lib/vin.ts`, champ dans le selecteur de vehicule et dans la commande) : lu dans le navigateur, rien n'est envoye a un serveur. Il donne le constructeur (3 premiers
-  caracteres) et l'annee indicative ; le modele est choisi dans la liste. Un lien WhatsApp permet d'envoyer le VIN complet au magasin pour verification. Dans une commande, le VIN
-  voyage dans la remarque (pas de colonne dediee).
+- **Dictionnaire arabe et darija** (`src/lib/arabicLexicon.ts`) : les mots courants des pieces, des positions et des voitures, ecrits en arabe ou en darija en lettres latines
+  (« فرامل » = frein, « زيت المحرك » = huile moteur, « zit » = huile, « كليو » = Clio...), sont traduits par les regles, sans IA. Les mots absents sont confies a l'IA (si activee) ;
+  la liste des « recherches sans resultat » de l'application (page Commandes web) montre les mots a ajouter au dictionnaire.
+- **VIN** (`src/lib/vin.ts`, champ dans le selecteur de vehicule et dans la commande) : il donne le constructeur (3 premiers caracteres) et l'annee indicative ; le modele est choisi
+  dans la liste. Un lien WhatsApp permet d'envoyer le VIN complet au magasin pour verification. Dans une commande, le VIN voyage dans la remarque (pas de colonne dediee).
+- **Memoire des VIN** (`/api/vin`, `src/lib/vinLearning.ts`, `supabase/ajout_vin_appris.sql`) : quand un client donne son VIN puis choisit son modele, le site retient « ces 8 premiers
+  caracteres = ce modele » (le numero de serie n'est jamais envoye ni garde). Au VIN suivant du meme type, le modele est propose tout seul des que 2 clients au moins l'ont choisi et
+  que 60 % au moins sont d'accord. Verifications avant d'enregistrer : le modele existe dans le selecteur, le constructeur est coherent avec le code du VIN, limites par visiteur.
+  Les erreurs se corrigent en supprimant des lignes dans Supabase > Table Editor > `vin_associations`.
 
 ## Ce qui n'est pas fait (volontairement)
 

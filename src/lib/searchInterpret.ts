@@ -1,4 +1,5 @@
 import { makeKey, vehicleParam, type VehicleMake } from './vehicles';
+import { translateForeign } from './arabicLexicon';
 
 /**
  * Recherche "intelligente" : transforme une phrase de client ("plaquettes avant clio 2 2004") en filtres du catalogue (pieces, voiture, constructeur, reference).
@@ -201,17 +202,15 @@ const REFERENCE = /^(?=.*\d)[a-z0-9]{5,}$/;
 
 /** Interpretation par regles d'une phrase de client. */
 export function interpretWithRules(text: string, lex: SearchLexicon): SearchInterpretation {
-  const rawTokens = fold(text).split(' ').filter(Boolean);
+  // arabe et darija : les mots connus du dictionnaire deviennent des mots du catalogue ("فرامل" -> "frein", "zit" -> "huile")
+  const translated = translateForeign(text);
+  const rawTokens = fold(translated.text).split(' ').filter(Boolean);
   const result: SearchInterpretation = { q: '', vehicule: null, constructeur: null, annee: null, reference: null, inconnus: [], source: 'regles' };
-  // texte sans lettres latines (arabe...) : rien n'est compris sans aide
-  if (rawTokens.length === 0) {
-    if (text.trim()) result.inconnus.push(text.trim().slice(0, 60));
-    return result;
-  }
 
-  // lettres d'une autre ecriture (arabe...) : fold() les efface, mais elles veulent dire quelque chose -> a confier a l'IA
-  const foreign = text.replace(/[\p{Script=Latin}\P{L}]/gu, '');
+  // lettres d'une ecriture que le dictionnaire ne connait pas (mots arabes inconnus, autre alphabet) : fold() les efface, mais elles veulent dire quelque chose -> a confier a l'IA
+  const foreign = [...translated.unknown, translated.text.replace(/[\p{Script=Latin}\P{L}]/gu, '')].filter(Boolean).join(' ');
   if (foreign) result.inconnus.push(foreign.slice(0, 60));
+  if (rawTokens.length === 0) return result;
 
   const consumed = new Set<number>();
 

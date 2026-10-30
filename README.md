@@ -102,6 +102,10 @@ piece, selecteur de vehicule masque, commande envoyee par WhatsApp seulement.
 - **Memoire des VIN** (`/api/vin`, `src/lib/vinLearning.ts`, `supabase/ajout_vin_appris.sql`) : quand un client donne son VIN puis choisit son modele, le site retient « ces 8 premiers
   caracteres = ce modele » (le numero de serie n'est jamais envoye ni garde). Au VIN suivant du meme type, le modele est propose tout seul des que 2 clients au moins l'ont choisi et
   que 60 % au moins sont d'accord. Verifications avant d'enregistrer : le modele existe dans le selecteur, le constructeur est coherent avec le code du VIN, limites par visiteur.
+  Fiabilite : seul un modele choisi A LA MAIN par le client compte comme un vote (accepter la proposition sans la changer n'en ajoute pas : une erreur ne peut pas se renforcer
+  toute seule). Sources : les voitures du magasin (fichier Excel de VIN confirmes : 2 voix par debut de VIN, donc proposees tout de suite) et des jeux de donnees publics
+  (types de voitures verifies a ≥ 2 VIN d'accord : 1 seule voix, donc proposes seulement apres confirmation d'un client). Les modeles dont le nom n'est que celui de la marque
+  (AUDI > AUDI) sont ecartes de la liste des voitures.
   Les erreurs se corrigent en supprimant des lignes dans Supabase > Table Editor > `vin_associations`.
 
 ## Ce qui n'est pas fait (volontairement)

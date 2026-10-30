@@ -71,6 +71,8 @@ export function groupVehicles(rows: VehicleIndexRow[]): VehicleMake[] {
   const map = new Map<string, VehicleMake>();
   for (const r of rows) {
     if (!r.make || !r.model) continue;
+    // "modele" qui n'est que le nom de la marque (AUDI > AUDI, MERCEDES-BENZ > MERCEDES-BENZ) : une ligne parasite des donnees de compatibilite, jamais une vraie voiture (MINI > MINI en est une)
+    if (makeKey(r.model) === makeKey(r.make) && makeKey(r.make) !== 'mini') continue;
     let m = map.get(r.make);
     if (!m) {
       m = { make: r.make, key: makeKey(r.make), label: makeLabel(r.make), nb: 0, models: [] };

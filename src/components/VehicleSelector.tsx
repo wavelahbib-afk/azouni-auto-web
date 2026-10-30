@@ -40,6 +40,8 @@ export function VehicleSelector({
   const [vin, setVin] = useState<(VinInfo & { known: boolean }) | { error: string } | null>(null);
   // modele appris des clients pour ce debut de VIN (memoire des VIN, voir lib/vinLearning.ts), quand il a ete applique
   const [learned, setLearned] = useState<VinSuggestion | null>(null);
+  // le modele affiche vient de la memoire et le client ne l'a pas change : accepter une proposition sans la verifier ne compte pas comme un vote (sinon une erreur se renforcerait toute seule)
+  const [modelFromMemory, setModelFromMemory] = useState(false);
   const modelRef = useRef<HTMLSelectElement>(null);
   const models = makes.find((m) => m.make === make)?.models ?? [];
   const bar = variant === 'bar';
@@ -51,7 +53,7 @@ export function VehicleSelector({
   function submit() {
     if (!make) return;
     // le client a donne un VIN puis choisi son modele : le site s'en souvient pour reconnaitre ce type de voiture ensuite (8 premiers caracteres seulement)
-    if (vin && 'vin' in vin && model) reportVinModel(vinPrefix(vin.vin), make, model);
+    if (vin && 'vin' in vin && model && !modelFromMemory) reportVinModel(vinPrefix(vin.vin), make, model);
     if (onSelect) onSelect(make, model);
     else router.push(model ? `/catalogue?vehicule=${encodeURIComponent(vehicleParam(make, model))}` : `/catalogue?constructeur=${encodeURIComponent(make)}`);
   }
@@ -67,6 +69,7 @@ export function VehicleSelector({
     const found = info.make ? makes.find((m) => m.make === info.make) : undefined;
     setVin({ ...info, known: Boolean(found) });
     setLearned(null);
+    setModelFromMemory(false);
     if (found) {
       setMake(found.make);
       setModel('');
@@ -79,6 +82,7 @@ export function VehicleSelector({
         setMake(s.make);
         setModel(s.model);
         setLearned(s);
+        setModelFromMemory(true);
       }
     });
   }
@@ -99,6 +103,7 @@ export function VehicleSelector({
           onChange={(e) => {
             setMake(e.target.value);
             setModel('');
+            setModelFromMemory(false);
             if (!e.target.value) onSelect?.('', '');
           }}
         >
@@ -113,7 +118,10 @@ export function VehicleSelector({
       <label className="relative block">
         <span className="sr-only">Modèle</span>
         <span className={stepClass}>2</span>
-        <select ref={modelRef} className={selectClass} value={model} disabled={!make} onChange={(e) => setModel(e.target.value)}>
+        <select ref={modelRef} className={selectClass} value={model} disabled={!make} onChange={(e) => {
+            setModel(e.target.value);
+            setModelFromMemory(false);
+          }}>
           <option value="">{make ? 'Tous les modèles' : 'Modèle'}</option>
           {models.map((m) => (
             <option key={m.model} value={m.model}>
@@ -185,7 +193,7 @@ export function VehicleSelector({
                   <strong className="text-ink">
                     Modèle probable : {makeLabel(learned.make)} {modelLabel(learned.model)}
                   </strong>{' '}
-                  (choisi par {learned.votes} client{learned.votes > 1 ? 's' : ''} avec le même début de numéro). Vérifiez-le sur votre carte grise, puis cliquez sur la recherche.
+                  (déjà vu sur {learned.votes} voiture{learned.votes > 1 ? 's' : ''} du même type). Vérifiez-le sur votre carte grise : si c&apos;est bien le vôtre, cliquez sur la recherche ; sinon choisissez le bon modèle.
                 </p>
               ) : vin.known && vin.make ? (
                 <p>

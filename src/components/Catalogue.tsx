@@ -2,7 +2,7 @@
 
 import { useEffect, useMemo, useState } from 'react';
 import { useSearchParams } from 'next/navigation';
-import { MessageCircle, Search, SlidersHorizontal, X } from 'lucide-react';
+import { Loader2, MessageCircle, Search, SlidersHorizontal, X } from 'lucide-react';
 import type { CatalogArticle } from '@/lib/types';
 import { normalizeReference } from '@/lib/normalize';
 import { articleTitle, articleVehicles, rawDesignation, hasPrice, effectivePrice, promoPrice } from '@/lib/display';
@@ -10,6 +10,7 @@ import { CATEGORIES, categoryBySlug } from '@/lib/categories';
 import { makeLabel, modelLabel, parseVehicleParam, vehicleParam, type VehicleMake } from '@/lib/vehicles';
 import { useVehicleCodes } from '@/lib/vehicleCodes';
 import { logEmptySearch } from '@/lib/searchLog';
+import { smartSearch } from '@/lib/smartSearch';
 import { buildWhatsAppLink } from '@/lib/whatsapp';
 import { SHOP } from '@/lib/shop';
 import { formatInt } from '@/lib/format';
@@ -100,6 +101,7 @@ export function Catalogue({ articles, makes }: { articles: CatalogArticle[]; mak
   const spString = searchParams.toString();
   const [filters, setFilters] = useState<Filters>(() => parseFilters(searchParams));
   const [showFilters, setShowFilters] = useState(false);
+  const [understanding, setUnderstanding] = useState(false);
 
   // Adresses que CE composant vient d'ecrire et que Next n'a pas encore "rendues" : quand l'adresse change, on sait ainsi si c'est notre propre ecriture qui revient
   // (a ignorer : sinon, en tapant vite, une adresse en retard effacerait les dernieres lettres) ou une vraie navigation externe.
@@ -129,6 +131,21 @@ export function Catalogue({ articles, makes }: { articles: CatalogArticle[]; mak
 
   function update(patch: Partial<Filters>, keepPage = false) {
     setFilters((f) => ({ ...f, ...patch, page: keepPage ? (patch.page ?? f.page) : (patch.page ?? 1) }));
+  }
+
+  // Entree dans la zone de recherche : la phrase est comprise ("plaquettes clio 2" -> piece + voiture) ; pendant la frappe, le filtre par mots reste instantane.
+  async function understandSearch() {
+    const text = filters.q.trim();
+    if (text.length < 3 || understanding) return;
+    setUnderstanding(true);
+    const found = await smartSearch(text);
+    setUnderstanding(false);
+    if (!found) return;
+    // la voiture deja choisie n'est remplacee que si la phrase en cite une
+    update({
+      q: found.q,
+      ...(found.vehicule ? { vehicule: vehicleParam(found.vehicule.make, found.vehicule.model), constructeur: '' } : found.constructeur ? { vehicule: '', constructeur: found.constructeur } : {}),
+    });
   }
 
   const vehicleSel = parseVehicleParam(filters.vehicule);
@@ -351,7 +368,14 @@ export function Catalogue({ articles, makes }: { articles: CatalogArticle[]; mak
                 aria-label="Rechercher dans le catalogue"
                 value={filters.q}
                 onChange={(e) => update({ q: e.target.value })}
+                onKeyDown={(e) => {
+                  if (e.key === 'Enter') {
+                    e.preventDefault();
+                    void understandSearch();
+                  }
+                }}
               />
+              {understanding && <Loader2 size={16} className="absolute right-9 top-1/2 -translate-y-1/2 animate-spin text-brand" aria-label="Recherche en cours" />}
               {filters.q && (
                 <button type="button" onClick={() => update({ q: '' })} aria-label="Effacer la recherche" className="absolute right-3 top-1/2 -translate-y-1/2 text-slate-300 hover:text-slate-500 transition-colors">
                   <X size={16} />

@@ -1,15 +1,19 @@
 'use client';
 
-import { useState } from 'react';
+import { useRef, useState } from 'react';
 import { useRouter } from 'next/navigation';
-import { Car, Search } from 'lucide-react';
+import { Car, MessageCircle, ScanLine, Search } from 'lucide-react';
 import type { VehicleMake } from '@/lib/vehicles';
-import { vehicleParam } from '@/lib/vehicles';
+import { makeLabel, modelLabel, vehicleParam } from '@/lib/vehicles';
+import { decodeVin, saveVin, type VinInfo } from '@/lib/vin';
+import { buildWhatsAppLink } from '@/lib/whatsapp';
+import { SHOP } from '@/lib/shop';
 
 /**
  * Selecteur de vehicule : constructeur puis modele -> le catalogue ne montre que les pieces compatibles (donnees de compatibilite synchronisees depuis AZOUNI AUTO).
  * `initialMake` / `initialModel` : vehicule deja choisi (page Catalogue). `onSelect` : utilise par le catalogue pour filtrer sans quitter la page.
  * `variant="bar"` : trois champs sur une ligne, sans cadre (bandeau d'accueil) ; `card` (par defaut) : encart vertical avec titre (colonne de filtres).
+ * Sous les champs : saisie du numero de chassis (VIN), lu dans le navigateur -- il propose le constructeur et l'annee, le client choisit le modele (voir lib/vin.ts).
  */
 export function VehicleSelector({
   makes,
@@ -30,6 +34,10 @@ export function VehicleSelector({
   const router = useRouter();
   const [make, setMake] = useState(initialMake);
   const [model, setModel] = useState(initialModel);
+  const [vinOpen, setVinOpen] = useState(false);
+  const [vinText, setVinText] = useState('');
+  const [vin, setVin] = useState<(VinInfo & { known: boolean }) | { error: string } | null>(null);
+  const modelRef = useRef<HTMLSelectElement>(null);
   const models = makes.find((m) => m.make === make)?.models ?? [];
   const bar = variant === 'bar';
 
@@ -42,6 +50,28 @@ export function VehicleSelector({
     if (onSelect) onSelect(make, model);
     else router.push(model ? `/catalogue?vehicule=${encodeURIComponent(vehicleParam(make, model))}` : `/catalogue?constructeur=${encodeURIComponent(make)}`);
   }
+
+  /** Lit le numero de chassis : propose le constructeur (liste du site) et l'annee ; le modele reste a choisir. */
+  function identifyVin() {
+    const info = decodeVin(vinText);
+    if (!info) {
+      setVin({ error: 'Un numéro de châssis (VIN) fait 17 caractères : des lettres (sans I, O ni Q) et des chiffres. Vérifiez-le sur la carte grise (case E).' });
+      return;
+    }
+    saveVin(info.vin);
+    const found = info.make ? makes.find((m) => m.make === info.make) : undefined;
+    setVin({ ...info, known: Boolean(found) });
+    if (found) {
+      setMake(found.make);
+      setModel('');
+      setTimeout(() => modelRef.current?.focus(), 0);
+    }
+  }
+
+  const vinMessage =
+    vin && 'vin' in vin
+      ? `Bonjour ${SHOP.name}, voici le numéro de châssis (VIN) de ma voiture : ${vin.vin}.${make ? ` Constructeur : ${makeLabel(make)}${model ? ` ${modelLabel(model)}` : ''}.` : ''} Pouvez-vous me confirmer les pièces compatibles ?`
+      : '';
 
   const fields = (
     <>
@@ -68,7 +98,7 @@ export function VehicleSelector({
       <label className="relative block">
         <span className="sr-only">Modèle</span>
         <span className={stepClass}>2</span>
-        <select className={selectClass} value={model} disabled={!make} onChange={(e) => setModel(e.target.value)}>
+        <select ref={modelRef} className={selectClass} value={model} disabled={!make} onChange={(e) => setModel(e.target.value)}>
           <option value="">{make ? 'Tous les modèles' : 'Modèle'}</option>
           {models.map((m) => (
             <option key={m.model} value={m.model}>
@@ -89,7 +119,84 @@ export function VehicleSelector({
     </>
   );
 
-  if (bar) return <div className="grid gap-3 md:grid-cols-[1fr_1fr_auto]">{fields}</div>;
+  const vinSection = (
+    <div className={bar ? 'mt-3' : 'mt-4 pt-4 border-t border-slate-200'}>
+      {!vinOpen ? (
+        <button type="button" onClick={() => setVinOpen(true)} className="inline-flex items-center gap-1.5 text-[13px] font-semibold text-brand hover:underline">
+          <ScanLine size={15} aria-hidden="true" />
+          J&apos;ai mon numéro de châssis (VIN)
+        </button>
+      ) : (
+        <div>
+          <label htmlFor={`vin-${variant}`} className="block text-xs font-semibold text-slate-600 mb-1.5">
+            Numéro de châssis (VIN), 17 caractères
+          </label>
+          <div className="flex gap-2">
+            <input
+              id={`vin-${variant}`}
+              className="min-w-0 flex-1 border border-slate-300 rounded-md bg-white px-3 py-2.5 text-sm font-mono uppercase tracking-wider placeholder:normal-case placeholder:tracking-normal placeholder:font-sans focus:outline-none focus:ring-2 focus:ring-brand/30 focus:border-brand"
+              placeholder="Ex. VF1XXXXXXXXXXXXXX"
+              maxLength={24}
+              autoComplete="off"
+              autoCapitalize="characters"
+              spellCheck={false}
+              value={vinText}
+              onChange={(e) => setVinText(e.target.value)}
+              onKeyDown={(e) => {
+                if (e.key === 'Enter') {
+                  e.preventDefault();
+                  identifyVin();
+                }
+              }}
+            />
+            <button type="button" onClick={identifyVin} className="shrink-0 rounded-md bg-ink px-4 py-2.5 font-display font-bold text-sm tracking-[0.1em] uppercase text-white hover:bg-brand transition-colors">
+              Identifier
+            </button>
+          </div>
+          <p className="mt-1.5 text-[11px] text-slate-400">Lu dans votre navigateur : le numéro n&apos;est envoyé nulle part, sauf si vous choisissez WhatsApp.</p>
+
+          {vin && 'error' in vin && (
+            <p role="alert" className="mt-2 text-xs text-red-700 bg-red-50 rounded px-2.5 py-2">
+              {vin.error}
+            </p>
+          )}
+          {vin && 'vin' in vin && (
+            <div className="mt-2 rounded bg-brand-soft px-3 py-2.5 text-xs text-slate-700 space-y-1.5" aria-live="polite">
+              {vin.known && vin.make ? (
+                <p>
+                  <strong className="text-ink">Constructeur reconnu : {makeLabel(vin.make)}</strong>
+                  {vin.year ? ` · année indicative ${vin.year}` : ''}. <strong>Choisissez maintenant le modèle</strong> dans la liste.
+                </p>
+              ) : (
+                <p>
+                  Le constructeur n&apos;est pas reconnu automatiquement : choisissez-le dans la liste, ou envoyez ce numéro à {SHOP.contactPerson} pour qu&apos;il vérifie.
+                </p>
+              )}
+              <p className="text-slate-500">Le constructeur et l&apos;année sont lus dans le numéro à titre indicatif ; le modèle exact se choisit dans la liste.</p>
+              <a
+                href={buildWhatsAppLink(SHOP.whatsapp, vinMessage)}
+                target="_blank"
+                rel="noopener noreferrer"
+                className="inline-flex items-center gap-1.5 font-semibold text-green-700 hover:text-green-800"
+              >
+                <MessageCircle size={14} />
+                Envoyer mon VIN à {SHOP.contactPerson} sur WhatsApp
+              </a>
+            </div>
+          )}
+        </div>
+      )}
+    </div>
+  );
+
+  if (bar) {
+    return (
+      <div>
+        <div className="grid gap-3 md:grid-cols-[1fr_1fr_auto]">{fields}</div>
+        {vinSection}
+      </div>
+    );
+  }
 
   return (
     <div className={`bg-white rounded-lg border border-slate-200 border-t-[3px] border-t-brand shadow-sm ${compact ? 'p-4' : 'p-5 sm:p-6'}`}>
@@ -99,6 +206,7 @@ export function VehicleSelector({
       </h2>
       <div className="space-y-3">{fields}</div>
       <p className="mt-3 text-xs text-slate-500">Seules les pièces qui citent votre voiture s&apos;affichent.</p>
+      {vinSection}
     </div>
   );
 }

@@ -10,6 +10,7 @@ import { DELIVERY, SHOP } from '@/lib/shop';
 import { buildCheckoutMessage, openWhatsApp } from '@/lib/whatsapp';
 import { EMPTY_FORM, newOrderRef, orderTotals, rememberOrder, saveOrder, validateOrder, type DeliveryMode, type OrderForm } from '@/lib/orders';
 import { Breadcrumbs } from '@/components/Breadcrumbs';
+import { readSavedVin } from '@/lib/vin';
 
 const inputClass =
   'w-full border border-slate-300 rounded-xl bg-white px-3.5 py-2.5 text-sm text-slate-800 placeholder:text-slate-400 focus:outline-none focus:ring-2 focus:ring-brand/30 focus:border-brand';
@@ -17,7 +18,8 @@ const inputClass =
 export default function PanierPage() {
   const router = useRouter();
   const { lines, updateQty, removeItem, clear } = useCart();
-  const [form, setForm] = useState<OrderForm>(EMPTY_FORM);
+  // le VIN saisi plus tot dans le selecteur de vehicule preremplit la commande (lu dans ce navigateur, au premier affichage)
+  const [form, setForm] = useState<OrderForm>(() => ({ ...EMPTY_FORM, vin: readSavedVin() }));
   const [error, setError] = useState<string | null>(null);
   const [sending, setSending] = useState(false);
   const [sent, setSent] = useState(false);
@@ -183,10 +185,25 @@ export default function PanierPage() {
               )}
               <label className="block sm:col-span-2">
                 <span className="block text-xs font-semibold text-slate-600 mb-1.5">
+                  Numéro de châssis (VIN) <span className="font-normal text-slate-400">(facultatif, 17 caractères, carte grise case E)</span>
+                </span>
+                <input
+                  className={`${inputClass} font-mono uppercase tracking-wider placeholder:font-sans placeholder:normal-case placeholder:tracking-normal`}
+                  value={form.vin}
+                  onChange={(e) => set('vin', e.target.value)}
+                  maxLength={24}
+                  autoComplete="off"
+                  spellCheck={false}
+                  placeholder="Permet de vérifier que les pièces vont sur votre voiture"
+                />
+              </label>
+              <label className="block sm:col-span-2">
+                <span className="block text-xs font-semibold text-slate-600 mb-1.5">
                   Remarque <span className="font-normal text-slate-400">(facultatif)</span>
                 </span>
                 <textarea
                   className={`${inputClass} resize-none`}
+                  maxLength={400}
                   rows={2}
                   value={form.note}
                   onChange={(e) => set('note', e.target.value)}

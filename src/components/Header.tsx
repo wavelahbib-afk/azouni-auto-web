@@ -4,11 +4,12 @@ import { useEffect, useRef, useState, type FormEvent } from 'react';
 import Image from 'next/image';
 import Link from 'next/link';
 import { usePathname, useRouter } from 'next/navigation';
-import { ShoppingCart, Search, Phone, Menu, X, ChevronDown, LayoutGrid, Truck } from 'lucide-react';
+import { ShoppingCart, Search, Phone, Menu, X, ChevronDown, LayoutGrid, Truck, Loader2 } from 'lucide-react';
 import { useCart } from '@/lib/cart';
 import { CATEGORIES } from '@/lib/categories';
 import { DELIVERY, SHOP } from '@/lib/shop';
 import { formatDt } from '@/lib/format';
+import { smartSearch } from '@/lib/smartSearch';
 import { CategoryIcon } from './CategoryIcon';
 
 const NAV = [
@@ -40,6 +41,7 @@ export function Header({ hasPromos = false }: { hasPromos?: boolean }) {
   const router = useRouter();
   const pathname = usePathname();
   const [query, setQuery] = useState('');
+  const [searching, setSearching] = useState(false);
   const [menuOpen, setMenuOpen] = useState(false);
   const [catsOpen, setCatsOpen] = useState(false);
   const catsRef = useRef<HTMLDivElement>(null);
@@ -67,10 +69,19 @@ export function Header({ hasPromos = false }: { hasPromos?: boolean }) {
     };
   }, [catsOpen]);
 
-  function submitSearch(e: FormEvent) {
+  // Recherche intelligente : "plaquettes avant clio 2" devient les bons filtres (piece + voiture). Si le serveur ne repond pas, recherche simple par mots.
+  async function submitSearch(e: FormEvent) {
     e.preventDefault();
     const q = query.trim();
-    router.push(q ? `/catalogue?q=${encodeURIComponent(q)}` : '/catalogue');
+    if (!q) {
+      router.push('/catalogue');
+      return;
+    }
+    if (searching) return;
+    setSearching(true);
+    const found = await smartSearch(q);
+    setSearching(false);
+    router.push(found?.url ?? `/catalogue?q=${encodeURIComponent(q)}`);
   }
 
   const nav = hasPromos ? [...NAV.slice(0, 2), { href: '/catalogue?promo=1', label: 'Promos' }, ...NAV.slice(2)] : NAV;
@@ -109,9 +120,10 @@ export function Header({ hasPromos = false }: { hasPromos?: boolean }) {
             <button
               type="submit"
               aria-label="Lancer la recherche"
-              className="absolute right-1 top-1/2 -translate-y-1/2 w-9 h-9 rounded bg-brand text-white hover:bg-brand-light inline-flex items-center justify-center transition-colors"
+              disabled={searching}
+              className="absolute right-1 top-1/2 -translate-y-1/2 w-9 h-9 rounded bg-brand text-white hover:bg-brand-light disabled:opacity-80 inline-flex items-center justify-center transition-colors"
             >
-              <Search size={16} />
+              {searching ? <Loader2 size={16} className="animate-spin" /> : <Search size={16} />}
             </button>
           </form>
 

@@ -1,6 +1,7 @@
 import type { CartLine } from './types';
 import { formatMoney } from './format';
 import type { OrderForm, OrderTotals } from './orders';
+import { normalizeVin } from './vin';
 
 // wa.me tronque/echoue au-dela de cette longueur -- meme limite que
 // azouni-auto/src/services/whatsapp.ts (buildWhatsAppLink), pour rester
@@ -30,6 +31,7 @@ export function buildCheckoutMessage(shopName: string, ref: string, form: OrderF
     '',
     `*Client :* ${form.name.trim()} - ${form.phone.trim()}`,
     form.mode === 'livraison' ? `*Livraison :* ${form.address.trim()}, ${form.city.trim()}` : '*Retrait au magasin*',
+    form.vin.trim() ? `*VIN (numéro de châssis) :* ${normalizeVin(form.vin)}` : '',
     '',
     ...lines.map((l) => `- ${l.designation}${l.marque ? ` (${l.marque})` : ''}${l.reference ? ` - Réf. ${l.reference}` : ''} x${l.qty} - ${formatMoney(l.prix_vente_ttc * l.qty)}`),
     '',

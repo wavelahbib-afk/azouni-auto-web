@@ -1,5 +1,6 @@
 import type { CartLine } from './types';
 import { deliveryFee } from './shop';
+import { isValidVinFormat, normalizeVin } from './vin';
 
 /**
  * Commande du site : le client remplit ses coordonnees, la commande est ENREGISTREE dans la base du site (table commandes_web -> visible dans AZOUNI AUTO, page
@@ -14,6 +15,8 @@ export interface OrderForm {
   mode: DeliveryMode;
   address: string;
   city: string;
+  /** numero de chassis (VIN), facultatif : permet au magasin de verifier la compatibilite des pieces */
+  vin: string;
   note: string;
 }
 
@@ -24,7 +27,7 @@ export interface OrderTotals {
   total: number;
 }
 
-export const EMPTY_FORM: OrderForm = { name: '', phone: '', mode: 'retrait', address: '', city: '', note: '' };
+export const EMPTY_FORM: OrderForm = { name: '', phone: '', mode: 'retrait', address: '', city: '', vin: '', note: '' };
 
 export function orderTotals(lines: CartLine[], mode: DeliveryMode): OrderTotals {
   const subtotal = Math.round(lines.reduce((s, l) => s + l.prix_vente_ttc * l.qty, 0) * 1000) / 1000;
@@ -57,7 +60,14 @@ export function validateOrder(form: OrderForm, lines: CartLine[]): string | null
     if (form.city.trim().length < 2) return 'Indiquez votre ville pour la livraison.';
     if (form.address.trim().length < 5) return 'Indiquez votre adresse de livraison.';
   }
+  if (form.vin.trim() && !isValidVinFormat(normalizeVin(form.vin))) return "Le numéro de châssis (VIN) fait 17 caractères : des lettres (sans I, O ni Q) et des chiffres. Laissez la case vide si vous ne l'avez pas.";
   return null;
+}
+
+/** Remarque enregistree avec la commande : le VIN (s'il est donne) puis la remarque du client -- la base du site n'a pas de colonne VIN, il voyage dans la remarque. */
+export function orderNote(form: OrderForm): string | null {
+  const vin = form.vin.trim() ? `VIN : ${normalizeVin(form.vin)}` : '';
+  return [vin, form.note.trim()].filter(Boolean).join(' · ') || null;
 }
 
 /** Derniere commande passee, gardee dans l'onglet pour la page de remerciement (reference, et message WhatsApp a renvoyer si WhatsApp ne s'est pas ouvert). */
@@ -101,7 +111,7 @@ export async function saveOrder(ref: string, form: OrderForm, lines: CartLine[],
         mode: form.mode,
         adresse: form.mode === 'livraison' ? form.address.trim() : null,
         ville: form.mode === 'livraison' ? form.city.trim() : null,
-        note: form.note.trim() || null,
+        note: orderNote(form),
         sous_total: totals.subtotal,
         frais_livraison: totals.delivery,
         total: totals.total,

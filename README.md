@@ -85,6 +85,19 @@ puis dans AZOUNI AUTO : Parametres > Site web > « Synchroniser maintenant ». I
 Tant que ce script n'est pas execute, le site fonctionne quand meme (sans ces nouveautes) : categories deduites du nom de la
 piece, selecteur de vehicule masque, commande envoyee par WhatsApp seulement.
 
+## 7. Recherche intelligente et numero de chassis (VIN)
+
+- **Recherche intelligente** (`/api/recherche`, `src/lib/searchInterpret.ts`) : la barre de recherche de l'en-tete et la touche Entree du catalogue transforment une phrase
+  (« plaquettes avant clio 2 ») en filtres (piece + voiture). Des **regles** repondent d'abord (voitures du site, vocabulaire du catalogue, pluriels, fautes de frappe, mots
+  anglais) : gratuit et instantane. Une **IA** n'est appelee que pour les mots que les regles ne comprennent pas, et seulement si une cle est renseignee
+  (`src/lib/searchAi.ts`) : `GEMINI_API_KEY` (Gemini de Google, offre **gratuite**, prioritaire) ou `ANTHROPIC_API_KEY` (Claude, payant, `claude-haiku-5-5` par defaut).
+  Sa reponse est toujours verifiee : constructeur et modele doivent exister dans le selecteur de vehicule, les mots doivent exister dans le catalogue. Seuls les mots de la
+  recherche sont envoyes (numeros de 5 chiffres ou plus et e-mails retires). Limites : 40 recherches/minute et 8 appels IA/minute par visiteur, 400 appels IA/jour
+  (`SEARCH_AI_DAILY_MAX`), reponses gardees 24 h ; si le fournisseur refuse (limite gratuite atteinte, erreur), le site continue avec les regles.
+- **VIN** (`src/lib/vin.ts`, champ dans le selecteur de vehicule et dans la commande) : lu dans le navigateur, rien n'est envoye a un serveur. Il donne le constructeur (3 premiers
+  caracteres) et l'annee indicative ; le modele est choisi dans la liste. Un lien WhatsApp permet d'envoyer le VIN complet au magasin pour verification. Dans une commande, le VIN
+  voyage dans la remarque (pas de colonne dediee).
+
 ## Ce qui n'est pas fait (volontairement)
 
 - Paiement en ligne : la commande se regle a la reception (magasin ou livreur).

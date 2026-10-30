@@ -49,5 +49,7 @@ export async function POST(req: Request) {
     if (ai && hasUsefulFilters(ai)) result = ai;
   }
 
-  return NextResponse.json({ ...result, url: catalogueUrlFor(result) });
+  // rien de comprehensible : recherche simple par mots (le catalogue dit alors "aucune piece" et propose WhatsApp, au lieu d'afficher toutes les pieces)
+  const url = hasUsefulFilters(result) ? catalogueUrlFor(result) : `/catalogue?q=${encodeURIComponent(text)}`;
+  return NextResponse.json({ ...result, url });
 }

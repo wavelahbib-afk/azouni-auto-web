@@ -209,6 +209,10 @@ export function interpretWithRules(text: string, lex: SearchLexicon): SearchInte
     return result;
   }
 
+  // lettres d'une autre ecriture (arabe...) : fold() les efface, mais elles veulent dire quelque chose -> a confier a l'IA
+  const foreign = text.replace(/[\p{Script=Latin}\P{L}]/gu, '');
+  if (foreign) result.inconnus.push(foreign.slice(0, 60));
+
   const consumed = new Set<number>();
 
   // annee

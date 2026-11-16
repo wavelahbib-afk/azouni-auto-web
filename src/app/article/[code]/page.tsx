@@ -11,7 +11,7 @@ import { articleRef, articleTitle, articleVehicles, effectivePrice, hasCorrected
 import { articleCategory, categoryBySlug } from "@/lib/categories";
 import { buildArticleQuestionMessage, buildWhatsAppLink } from "@/lib/whatsapp";
 import { DELIVERY, SHOP, siteUrl } from "@/lib/shop";
-import { ArticleImage } from "@/components/ArticleImage";
+import { PhotoViewer } from "@/components/PhotoViewer";
 import { ArticleCard } from "@/components/ArticleCard";
 import { AddToCartButton } from "@/components/AddToCartButton";
 import { Breadcrumbs } from "@/components/Breadcrumbs";
@@ -161,7 +161,7 @@ export default async function ArticlePage({ params }: PageProps<"/article/[code]
       <div className="grid lg:grid-cols-[minmax(0,5fr)_minmax(0,6fr)] gap-8 lg:gap-12">
         <div>
           <div className="lg:sticky lg:top-40 relative">
-            <ArticleImage photoUrl={article.photo_url} alt={title} className="w-full aspect-square rounded-2xl border border-slate-200" />
+            <PhotoViewer photoUrl={article.photo_url} alt={title} className="w-full aspect-square rounded-2xl border border-slate-200" />
             {percent !== null && <span className="chamfer-sm absolute top-0 left-0 bg-amber-400 text-ink font-display font-extrabold text-2xl leading-none pl-3.5 pr-5 py-2.5">−{percent}%</span>}
           </div>
         </div>

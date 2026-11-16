@@ -19,7 +19,7 @@ export function Footer() {
       <div className="relative max-w-7xl mx-auto px-4 pt-14 pb-10 grid gap-10 sm:grid-cols-2 lg:grid-cols-[1.4fr_1fr_1fr_1.2fr]">
         <div>
           <div className="flex items-center gap-3 mb-4">
-            <Image src="/logo.png" alt="" width={48} height={48} className="rounded-md ring-1 ring-white/15" />
+            <Image src="/logo-emblem.png" alt="" width={48} height={48} className="rounded-md ring-1 ring-white/15" />
             <span className="font-display font-extrabold text-2xl tracking-[0.08em] uppercase chrome-text">{SHOP.name}</span>
           </div>
           <p className="text-sm text-slate-400 leading-relaxed max-w-xs">

@@ -75,7 +75,15 @@ export function useCart() {
     } else {
       setCart([
         ...cartState,
-        { code: article.code, designation: articleTitle(article), reference: articleRef(article), marque: article.marque, prix_vente_ttc: effectivePrice(article), qty },
+        {
+          code: article.code,
+          designation: articleTitle(article),
+          reference: articleRef(article),
+          marque: article.marque,
+          prix_vente_ttc: effectivePrice(article),
+          prix_normal: article.prix_vente_ttc,
+          qty,
+        },
       ]);
     }
   }, []);

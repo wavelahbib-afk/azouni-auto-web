@@ -44,7 +44,10 @@ export interface CartLine {
   /** Reference de l'article, rappelee dans le message WhatsApp (absente des anciens paniers enregistres dans le navigateur). */
   reference?: string;
   marque: string | null;
+  /** Prix du moment au moment de l'ajout (promotion ou remise par palier comprise). */
   prix_vente_ttc: number;
+  /** Prix normal (sans promotion) : sert a calculer la remise de fidelite d'un compte (src/lib/loyalty.ts). Absent des anciens paniers. */
+  prix_normal?: number;
   qty: number;
 }
 

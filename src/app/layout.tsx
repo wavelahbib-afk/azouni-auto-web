@@ -30,8 +30,8 @@ export const metadata: Metadata = {
   metadataBase: new URL(siteUrl()),
   title: { default: `${SHOP.name} – Pièces détachées automobiles à ${SHOP.address.region}`, template: `%s | ${SHOP.name}` },
   description: `${SHOP.name}, ${SHOP.address.city} (${SHOP.address.region}) : pièces de rechange automobile en stock, catalogue en ligne par référence et par véhicule, commande par WhatsApp, livraison possible.`,
-  icons: { icon: "/logo.png" },
-  openGraph: { siteName: SHOP.name, locale: "fr_TN", type: "website", images: ["/logo.png"] },
+  icons: { icon: "/logo-emblem.png" },
+  openGraph: { siteName: SHOP.name, locale: "fr_TN", type: "website", images: ["/logo-emblem.png"] },
   alternates: { canonical: "/" },
 };
 
@@ -41,7 +41,7 @@ const storeJsonLd = {
   "@type": "AutoPartsStore",
   name: SHOP.name,
   url: siteUrl(),
-  image: `${siteUrl()}/logo.png`,
+  image: `${siteUrl()}/logo-emblem.png`,
   telephone: SHOP.phoneHref.replace("tel:", ""),
   address: {
     "@type": "PostalAddress",

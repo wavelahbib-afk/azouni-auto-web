@@ -3,13 +3,16 @@
 import { useState, type FormEvent } from 'react';
 import Link from 'next/link';
 import { useRouter } from 'next/navigation';
-import { ShoppingBag, Trash2, MessageCircle, Store, Truck, Loader2 } from 'lucide-react';
+import { ShoppingBag, Trash2, MessageCircle, Store, Truck, Loader2, BadgePercent, UserRound } from 'lucide-react';
 import { useCart } from '@/lib/cart';
+import { getFreshSession, peekAccessToken, useAccount } from '@/lib/account';
+import { authConfigured } from '@/lib/auth';
 import { formatDt, formatMoney } from '@/lib/format';
 import { DELIVERY, SHOP } from '@/lib/shop';
 import { buildCheckoutMessage, openWhatsApp } from '@/lib/whatsapp';
-import { EMPTY_FORM, newOrderRef, orderTotals, rememberOrder, saveOrder, validateOrder, type DeliveryMode, type OrderForm } from '@/lib/orders';
+import { EMPTY_FORM, lineUnitPrice, newOrderRef, orderTotals, rememberOrder, submitOrder, validateOrder, type DeliveryMode, type OrderForm } from '@/lib/orders';
 import { Breadcrumbs } from '@/components/Breadcrumbs';
+import { Captcha, captchaEnabled } from '@/components/Captcha';
 import { readSavedVin } from '@/lib/vin';
 
 const inputClass =
@@ -23,8 +26,18 @@ export default function PanierPage() {
   const [error, setError] = useState<string | null>(null);
   const [sending, setSending] = useState(false);
   const [sent, setSent] = useState(false);
+  const [captcha, setCaptcha] = useState<string | null>(null);
 
-  const totals = orderTotals(lines, form.mode);
+  // client connecte : ses coordonnees preremplissent le formulaire (une seule fois, sans ecraser ce qu'il a deja tape) et sa remise de fidelite s'applique
+  const account = useAccount();
+  const [prefilled, setPrefilled] = useState(false);
+  if (account.profile && !prefilled) {
+    const p = account.profile;
+    setPrefilled(true);
+    setForm((f) => ({ ...f, name: f.name || p.nom, phone: f.phone || (p.telephone ?? ''), city: f.city || (p.ville ?? ''), address: f.address || (p.adresse ?? '') }));
+  }
+
+  const totals = orderTotals(lines, form.mode, account.remisePct);
   const missingForFree = Math.max(0, DELIVERY.freeFrom - totals.subtotal);
 
   function set<K extends keyof OrderForm>(key: K, value: OrderForm[K]) {
@@ -39,18 +52,36 @@ export default function PanierPage() {
       setError(problem);
       return;
     }
+    if (captchaEnabled && !captcha) {
+      setError('Patientez un instant : la vérification anti-robot doit se terminer.');
+      return;
+    }
     setError(null);
     setSending(true);
+
+    // jeton du client connecte : lu tout de suite (sans attente) pour ne pas perdre le « geste » du clic qui autorise WhatsApp a s'ouvrir ; renouvele seulement s'il expire
+    const peek = peekAccessToken();
+    let token = peek.token;
+    if (peek.expiring) token = (await getFreshSession())?.access_token;
 
     const ref = newOrderRef();
     const message = buildCheckoutMessage(SHOP.name, ref, form, lines, totals);
     // L'enregistrement part tout de suite (keepalive) ET WhatsApp s'ouvre dans le meme geste du client, sinon le navigateur bloquerait la fenetre : on attend
     // ensuite seulement de savoir si l'enregistrement a abouti.
-    const saving = saveOrder(ref, form, lines, totals);
+    const saving = submitOrder(ref, form, lines, { token, captchaToken: captcha ?? undefined });
     openWhatsApp(SHOP.whatsapp, message);
-    const saved = await saving;
+    const result = await saving;
 
-    rememberOrder({ ref, saved, mode: form.mode, total: totals.total, message });
+    rememberOrder({
+      ref,
+      saved: result.saved,
+      mode: form.mode,
+      // montants enregistres par le serveur (il recalcule les prix a partir du catalogue)
+      total: result.server?.total ?? totals.total,
+      message,
+      discount: result.server ? result.server.remise_montant : totals.saving,
+      reason: result.error?.message,
+    });
     setSent(true);
     clear();
     router.push(`/commande/merci?ref=${ref}`);
@@ -79,7 +110,10 @@ export default function PanierPage() {
       <form onSubmit={commander} className="grid lg:grid-cols-[minmax(0,1fr)_22rem] gap-8 items-start">
         <div className="space-y-6 min-w-0">
           <div className="divide-y divide-slate-100 border border-slate-200 rounded-2xl bg-white shadow-sm overflow-hidden">
-            {lines.map((l) => (
+            {lines.map((l) => {
+              const unit = lineUnitPrice(l, account.remisePct);
+              const reduced = unit < l.prix_vente_ttc;
+              return (
               <div key={l.code} className="flex items-center gap-3 p-4">
                 <div className="flex-1 min-w-0">
                   <Link href={`/article/${encodeURIComponent(l.code)}`} className="block text-sm font-semibold text-slate-800 hover:text-brand transition-colors line-clamp-2">
@@ -90,7 +124,11 @@ export default function PanierPage() {
                     {l.marque && l.reference && ' · '}
                     {l.reference && <span className="font-mono">Réf. {l.reference}</span>}
                   </p>
-                  <p className="text-xs text-slate-400">{formatMoney(l.prix_vente_ttc)} l&apos;unité</p>
+                  <p className="text-xs text-slate-400">
+                    {reduced && <span className="line-through mr-1.5">{formatMoney(l.prix_vente_ttc)}</span>}
+                    <span className={reduced ? 'font-semibold text-green-700' : ''}>{formatMoney(unit)}</span> l&apos;unité
+                    {reduced && <span className="ml-1.5 text-green-700">· remise fidélité</span>}
+                  </p>
                 </div>
                 <input
                   type="number"
@@ -100,13 +138,26 @@ export default function PanierPage() {
                   onChange={(e) => updateQty(l.code, parseInt(e.target.value, 10) || 0)}
                   aria-label={`Quantité : ${l.designation}`}
                 />
-                <span className="w-24 text-right text-sm font-bold text-brand">{formatMoney(l.prix_vente_ttc * l.qty)}</span>
+                <span className="w-24 text-right text-sm font-bold text-brand">{formatMoney(unit * l.qty)}</span>
                 <button type="button" className="text-slate-300 hover:text-red-600 transition-colors" onClick={() => removeItem(l.code)} aria-label={`Retirer : ${l.designation}`}>
                   <Trash2 size={16} />
                 </button>
               </div>
-            ))}
+              );
+            })}
           </div>
+
+          {authConfigured && account.ready && !account.loggedIn && (
+            <p className="flex items-start gap-3 rounded-2xl border border-slate-200 bg-white p-4 text-sm text-slate-600 shadow-sm">
+              <UserRound size={20} className="text-brand shrink-0 mt-0.5" aria-hidden="true" />
+              <span>
+                <Link href="/compte" className="font-semibold text-brand hover:underline">
+                  Connectez-vous ou créez un compte
+                </Link>{' '}
+                pour retrouver vos coordonnées, suivre vos commandes et profiter de votre remise de fidélité. Le compte est facultatif : vous pouvez aussi commander sans.
+              </span>
+            </p>
+          )}
 
           <fieldset className="bg-white border border-slate-200 rounded-2xl p-5 sm:p-6 shadow-sm">
             <legend className="sr-only">Mode de réception</legend>
@@ -219,8 +270,17 @@ export default function PanierPage() {
           <dl className="space-y-2.5 text-sm">
             <div className="flex justify-between text-slate-600">
               <dt>Sous-total</dt>
-              <dd className="font-semibold text-slate-800">{formatMoney(totals.subtotal)}</dd>
+              <dd className="font-semibold text-slate-800">{formatMoney(totals.subtotal + totals.saving)}</dd>
             </div>
+            {totals.saving > 0 && (
+              <div className="flex justify-between items-center text-green-700">
+                <dt className="inline-flex items-center gap-1.5">
+                  <BadgePercent size={15} aria-hidden="true" />
+                  Remise fidélité {totals.loyaltyPercent} %
+                </dt>
+                <dd className="font-semibold">-{formatMoney(totals.saving)}</dd>
+              </div>
+            )}
             <div className="flex justify-between text-slate-600">
               <dt>{form.mode === 'livraison' ? 'Livraison' : 'Retrait au magasin'}</dt>
               <dd className="font-semibold text-slate-800">{form.mode === 'livraison' ? (totals.delivery > 0 ? formatMoney(totals.delivery) : 'Gratuite') : 'Gratuit'}</dd>
@@ -230,6 +290,16 @@ export default function PanierPage() {
               <dd className="text-2xl font-extrabold text-brand">{formatMoney(totals.total)}</dd>
             </div>
           </dl>
+
+          {account.loggedIn && account.remisePct > 0 && totals.saving === 0 && lines.every((l) => l.prix_normal != null) && (
+            <p className="mt-3 text-xs text-slate-500">Vos promotions en cours sont plus avantageuses que votre remise de fidélité ({account.remisePct} %) : vous payez le prix le plus bas.</p>
+          )}
+
+          {captchaEnabled && (
+            <div className="mt-4">
+              <Captcha onToken={setCaptcha} />
+            </div>
+          )}
 
           {error && (
             <p role="alert" className="mt-4 text-sm text-red-700 bg-red-50 rounded-lg px-3 py-2">

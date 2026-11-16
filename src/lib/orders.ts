@@ -1,6 +1,7 @@
 import type { CartLine } from './types';
 import { deliveryFee } from './shop';
 import { isValidVinFormat, normalizeVin } from './vin';
+import { cleanPercent, finalUnitPrice, loyaltyTotals } from './loyalty';
 
 /**
  * Commande du site : le client remplit ses coordonnees, la commande est ENREGISTREE dans la base du site (table commandes_web -> visible dans AZOUNI AUTO, page
@@ -21,18 +22,33 @@ export interface OrderForm {
 }
 
 export interface OrderTotals {
+  /** sous-total des pieces au prix a payer (promotion / remise de fidelite comprises) */
   subtotal: number;
   /** frais de livraison (0 pour un retrait au magasin, ou une livraison gratuite) */
   delivery: number;
   total: number;
+  /** remise de fidelite du compte connecte (%), 0 sans compte */
+  loyaltyPercent: number;
+  /** ce que la fidelite fait gagner en plus du prix du moment (0 si la promotion etait deja meilleure) */
+  saving: number;
 }
 
 export const EMPTY_FORM: OrderForm = { name: '', phone: '', mode: 'retrait', address: '', city: '', vin: '', note: '' };
 
-export function orderTotals(lines: CartLine[], mode: DeliveryMode): OrderTotals {
-  const subtotal = Math.round(lines.reduce((s, l) => s + l.prix_vente_ttc * l.qty, 0) * 1000) / 1000;
+/** Prix unitaire a payer d'une ligne du panier : le meilleur entre son prix du moment et le prix de fidelite du compte (pas de cumul). */
+export function lineUnitPrice(line: CartLine, loyaltyPercent = 0): number {
+  return finalUnitPrice(line.prix_normal, line.prix_vente_ttc, loyaltyPercent);
+}
+
+/** Totaux affiches dans le panier et le message WhatsApp ; le serveur recalcule les memes montants a partir du catalogue (src/lib/orderServer.ts). */
+export function orderTotals(lines: CartLine[], mode: DeliveryMode, loyaltyPercent = 0): OrderTotals {
+  const percent = cleanPercent(loyaltyPercent);
+  const { subtotal, saving } = loyaltyTotals(
+    lines.map((l) => ({ qty: l.qty, normal: l.prix_normal, effective: l.prix_vente_ttc })),
+    percent,
+  );
   const delivery = mode === 'livraison' ? deliveryFee(subtotal) : 0;
-  return { subtotal, delivery, total: Math.round((subtotal + delivery) * 1000) / 1000 };
+  return { subtotal, delivery, total: Math.round((subtotal + delivery) * 1000) / 1000, loyaltyPercent: percent, saving };
 }
 
 const REF_ALPHABET = 'ABCDEFGHJKMNPQRSTUVWXYZ23456789'; // sans I, L, O, 0, 1 (confusions a l'oral)
@@ -78,6 +94,10 @@ export interface LastOrder {
   mode: DeliveryMode;
   total: number;
   message: string;
+  /** remise de fidelite reellement accordee (en DT), si le compte en avait une */
+  discount?: number;
+  /** pourquoi la commande n'a pas ete enregistree automatiquement (anti-robot, session expiree, piece retiree du catalogue...), quand le serveur le dit */
+  reason?: string;
 }
 
 export const LAST_ORDER_KEY = 'azouni_last_order';
@@ -90,9 +110,62 @@ export function rememberOrder(order: LastOrder): void {
   }
 }
 
+export interface SubmitResult {
+  /** vrai si la commande est enregistree chez le magasin */
+  saved: boolean;
+  /** montants enregistres par le serveur (peuvent differer de l'affichage si un prix a change entre-temps) */
+  server?: { total: number; remise_montant: number };
+  /** pourquoi la porte serveur a refuse la commande (anti-robot, session expiree, piece retiree du catalogue...) */
+  error?: { code: string; message: string; codes?: string[] };
+}
+
 /**
- * Enregistre la commande dans la base du site (API REST Supabase, cle anon : la table n'autorise que l'INSERTION d'une commande "nouvelle", jamais la lecture).
- * Retourne true si elle est enregistree ; false sinon (la commande est alors envoyee par WhatsApp seulement).
+ * Envoie la commande a la « porte » serveur (/api/commande) : anti-robot verifie, compte controle, prix recalcules depuis le catalogue, enregistrement.
+ * Si la porte n'est pas encore configuree (reponse 503 « non_configure ») ou injoignable, repli sur l'ancien enregistrement direct (saveOrder) : la commande part
+ * quand meme. Ne leve jamais d'exception.
+ */
+export async function submitOrder(ref: string, form: OrderForm, lines: CartLine[], options: { token?: string; captchaToken?: string } = {}): Promise<SubmitResult> {
+  const controller = new AbortController();
+  const timer = setTimeout(() => controller.abort(), 15000);
+  try {
+    const res = await fetch('/api/commande', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json', ...(options.token ? { Authorization: `Bearer ${options.token}` } : {}) },
+      body: JSON.stringify({
+        ref,
+        name: form.name,
+        phone: form.phone,
+        mode: form.mode,
+        address: form.address,
+        city: form.city,
+        vin: form.vin,
+        note: form.note,
+        lignes: lines.map((l) => ({ code: l.code, qty: l.qty })),
+        captcha_token: options.captchaToken ?? '',
+      }),
+      signal: controller.signal,
+      // la requete part meme si la page est quittee aussitot (WhatsApp s'ouvre dans la foulee, surtout sur mobile)
+      keepalive: true,
+    });
+    const json = (await res.json().catch(() => null)) as
+      | { ok: true; total: number; remise_montant: number }
+      | { ok: false; erreur: string; message: string; codes?: string[] }
+      | null;
+    if (res.ok && json?.ok) return { saved: true, server: { total: json.total, remise_montant: json.remise_montant } };
+    if (json && !json.ok && json.erreur !== 'non_configure') return { saved: false, error: { code: json.erreur, message: json.message, codes: json.codes } };
+    // porte pas encore configuree : ancien chemin
+    return { saved: await saveOrder(ref, form, lines, orderTotals(lines, form.mode)) };
+  } catch {
+    // porte injoignable (reseau, delai) : dernier essai par l'ancien chemin ; la commande part de toute facon par WhatsApp
+    return { saved: await saveOrder(ref, form, lines, orderTotals(lines, form.mode)) };
+  } finally {
+    clearTimeout(timer);
+  }
+}
+
+/**
+ * Ancien enregistrement, DIRECT dans la base du site (API REST Supabase, cle anon : la table n'autorise que l'INSERTION d'une commande "nouvelle", jamais la lecture).
+ * Sert de repli tant que la porte serveur n'est pas en service ; supabase/durcir_commandes.sql le ferme ensuite. Retourne true si la commande est enregistree.
  */
 export async function saveOrder(ref: string, form: OrderForm, lines: CartLine[], totals: OrderTotals): Promise<boolean> {
   const url = process.env.NEXT_PUBLIC_SUPABASE_URL;
@@ -115,6 +188,7 @@ export async function saveOrder(ref: string, form: OrderForm, lines: CartLine[],
         sous_total: totals.subtotal,
         frais_livraison: totals.delivery,
         total: totals.total,
+        // ancien chemin sans compte : prix du moment seulement (jamais de remise de fidelite, reservee a la porte serveur)
         lignes: lines.map((l) => ({ code: l.code, designation: l.designation, reference: l.reference ?? null, marque: l.marque, prix: l.prix_vente_ttc, qty: l.qty })),
       }),
       signal: controller.signal,

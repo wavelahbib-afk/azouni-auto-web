@@ -4,8 +4,10 @@ import { useEffect, useRef, useState, type FormEvent } from 'react';
 import Image from 'next/image';
 import Link from 'next/link';
 import { usePathname, useRouter } from 'next/navigation';
-import { ShoppingCart, Search, Phone, Menu, X, ChevronDown, LayoutGrid, Truck, Loader2 } from 'lucide-react';
+import { ShoppingCart, Search, Phone, Menu, X, ChevronDown, LayoutGrid, Truck, Loader2, UserRound } from 'lucide-react';
 import { useCart } from '@/lib/cart';
+import { useAccount } from '@/lib/account';
+import { authConfigured } from '@/lib/auth';
 import { CATEGORIES } from '@/lib/categories';
 import { DELIVERY, SHOP } from '@/lib/shop';
 import { formatDt } from '@/lib/format';
@@ -19,25 +21,28 @@ const NAV = [
   { href: '/contact', label: 'Nous trouver' },
 ];
 
-/** Nom du magasin en lettres du logo : AZOUNI en chrome, AUTO en bleu entre deux traits de vitesse. */
+/**
+ * Nom du magasin en lettres du logo : le premier mot en chrome, le reste en bleu entre deux traits de vitesse.
+ * Un nom d'un seul mot (PIECEO_Z) est suivi de la mention « Pièces auto » dans la ligne bleue.
+ */
 function Wordmark() {
   const [first, ...rest] = SHOP.name.split(' ');
+  const sub = rest.length > 0 ? rest.join(' ') : 'Pièces auto';
   return (
     <span className="leading-none">
       <span className="block font-display font-extrabold text-[26px] tracking-[0.06em] uppercase chrome-text">{first}</span>
-      {rest.length > 0 && (
-        <span className="mt-1 flex items-center gap-1.5 text-volt" aria-hidden="true">
-          <span className="block h-[2px] w-3 -skew-x-[30deg] bg-current" />
-          <span className="font-display font-bold text-[13px] tracking-[0.42em] uppercase">{rest.join(' ')}</span>
-          <span className="block h-[2px] w-3 -skew-x-[30deg] bg-current" />
-        </span>
-      )}
+      <span className="mt-1 flex items-center gap-1.5 text-volt" aria-hidden="true">
+        <span className="block h-[2px] w-3 -skew-x-[30deg] bg-current" />
+        <span className="font-display font-bold text-[13px] tracking-[0.42em] uppercase">{sub}</span>
+        <span className="block h-[2px] w-3 -skew-x-[30deg] bg-current" />
+      </span>
     </span>
   );
 }
 
 export function Header({ hasPromos = false }: { hasPromos?: boolean }) {
   const { totalQty } = useCart();
+  const { loggedIn } = useAccount();
   const router = useRouter();
   const pathname = usePathname();
   const [query, setQuery] = useState('');
@@ -102,7 +107,7 @@ export function Header({ hasPromos = false }: { hasPromos?: boolean }) {
           </button>
 
           <Link href="/" className="flex items-center gap-3 shrink-0" aria-label={`${SHOP.name} - accueil`}>
-            <Image src="/logo.png" alt="" width={46} height={46} className="rounded-md ring-1 ring-white/15" priority />
+            <Image src="/logo-emblem.png" alt="" width={46} height={46} className="rounded-md ring-1 ring-white/15" priority />
             <span className="hidden sm:block">
               <Wordmark />
             </span>
@@ -136,6 +141,18 @@ export function Header({ hasPromos = false }: { hasPromos?: boolean }) {
               <span className="block font-display font-bold text-[22px] tracking-wide text-white mt-1">{SHOP.phone}</span>
             </span>
           </a>
+
+          {authConfigured && (
+            <Link
+              href="/compte"
+              className="relative inline-flex flex-col items-center shrink-0 px-2 text-chrome/80 hover:text-white transition-colors"
+              aria-label={loggedIn ? 'Mon compte' : 'Se connecter ou créer un compte'}
+            >
+              <UserRound size={22} />
+              <span className="font-display font-semibold text-[11px] tracking-[0.14em] uppercase mt-0.5 hidden sm:block">{loggedIn ? 'Mon compte' : 'Connexion'}</span>
+              {loggedIn && <span className="absolute top-0 right-1 w-2.5 h-2.5 rounded-full bg-green-400 ring-2 ring-ink" aria-hidden="true" />}
+            </Link>
+          )}
 
           <Link
             href="/panier"

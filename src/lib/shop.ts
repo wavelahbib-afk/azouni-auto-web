@@ -19,7 +19,7 @@ export function formatLocalPhone(phone: string): string {
   return local.length === 8 ? `${local.slice(0, 2)} ${local.slice(2, 5)} ${local.slice(5)}` : phone;
 }
 
-const name = process.env.NEXT_PUBLIC_SHOP_NAME || 'AZOUNI AUTO';
+const name = process.env.NEXT_PUBLIC_SHOP_NAME || 'PIECEO_Z';
 const phone = process.env.NEXT_PUBLIC_SHOP_PHONE || '56 456 124'; // Hamdi
 const whatsapp = process.env.NEXT_PUBLIC_SHOP_WHATSAPP || toInternational(phone);
 

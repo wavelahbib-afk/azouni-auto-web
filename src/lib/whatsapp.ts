@@ -1,6 +1,6 @@
 import type { CartLine } from './types';
 import { formatMoney } from './format';
-import type { OrderForm, OrderTotals } from './orders';
+import { lineUnitPrice, type OrderForm, type OrderTotals } from './orders';
 import { normalizeVin } from './vin';
 
 // wa.me tronque/echoue au-dela de cette longueur -- meme limite que
@@ -33,9 +33,11 @@ export function buildCheckoutMessage(shopName: string, ref: string, form: OrderF
     form.mode === 'livraison' ? `*Livraison :* ${form.address.trim()}, ${form.city.trim()}` : '*Retrait au magasin*',
     form.vin.trim() ? `*VIN (numéro de châssis) :* ${normalizeVin(form.vin)}` : '',
     '',
-    ...lines.map((l) => `- ${l.designation}${l.marque ? ` (${l.marque})` : ''}${l.reference ? ` - Réf. ${l.reference}` : ''} x${l.qty} - ${formatMoney(l.prix_vente_ttc * l.qty)}`),
+    ...lines.map((l) => `- ${l.designation}${l.marque ? ` (${l.marque})` : ''}${l.reference ? ` - Réf. ${l.reference}` : ''} x${l.qty} - ${formatMoney(lineUnitPrice(l, totals.loyaltyPercent) * l.qty)}`),
     '',
-    `Sous-total : ${formatMoney(totals.subtotal)}`,
+    // les prix des lignes ci-dessus sont deja remises : le sous-total est rappele AVANT remise, puis la remise, pour que les comptes tombent juste
+    `Sous-total : ${formatMoney(totals.subtotal + totals.saving)}`,
+    totals.saving > 0 ? `Remise fidélité ${totals.loyaltyPercent} % : -${formatMoney(totals.saving)}` : '',
     form.mode === 'livraison' ? `Livraison : ${totals.delivery > 0 ? formatMoney(totals.delivery) : 'gratuite'}` : '',
     `*Total estimatif : ${formatMoney(totals.total)}*`,
     form.note.trim() ? `\nNote : ${form.note.trim()}` : '',

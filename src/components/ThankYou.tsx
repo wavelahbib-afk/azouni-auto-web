@@ -47,12 +47,13 @@ export function ThankYou() {
         </p>
       )}
       {order && <p className="mt-1 text-sm text-slate-400">Total estimatif : {formatMoney(order.total)}</p>}
+      {order?.discount ? <p className="mt-1 text-sm font-semibold text-green-700">Remise de fidélité déduite : {formatMoney(order.discount)}</p> : null}
 
       <div className="mt-6 text-left bg-white border border-slate-200 rounded-2xl p-5 text-sm text-slate-600 space-y-2.5">
         {order && !order.saved ? (
           <p>
-            <strong className="text-slate-800">Votre commande n&apos;a pas pu être enregistrée automatiquement.</strong> Envoyez-la au magasin par WhatsApp avec le bouton ci-dessous : elle part
-            avec tout le détail.
+            <strong className="text-slate-800">Votre commande n&apos;a pas pu être enregistrée automatiquement.</strong>
+            {order.reason ? ` ${order.reason}` : ''} Envoyez-la au magasin par WhatsApp avec le bouton ci-dessous : elle part avec tout le détail.
           </p>
         ) : (
           <p>

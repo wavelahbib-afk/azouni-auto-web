@@ -1,0 +1,43 @@
+<!--
+  Modele « Reset password » de Supabase (Authentication > Emails > Templates > Reset password).
+  Objet a saisir : Votre nouveau mot de passe - PIECEO_Z
+  Le lien ouvre la page /compte/confirmation du site, ou le client choisit son nouveau mot de passe.
+-->
+<div style="margin:0;padding:24px 12px;background:#f3f5f8;font-family:Arial,Helvetica,sans-serif;color:#10151d;">
+  <table role="presentation" width="100%" cellpadding="0" cellspacing="0" style="max-width:520px;margin:0 auto;background:#ffffff;border:1px solid #d8dee6;border-radius:12px;overflow:hidden;">
+    <tr>
+      <td style="background:#090c11;padding:20px 28px;border-bottom:4px solid #1a5fe0;">
+        <span style="font-size:26px;font-weight:800;letter-spacing:2px;color:#ffffff;">PIECEO_Z</span>
+        <span style="display:block;margin-top:4px;font-size:11px;letter-spacing:4px;color:#4f95ff;text-transform:uppercase;">Pièces auto</span>
+      </td>
+    </tr>
+    <tr>
+      <td style="padding:28px;">
+        <h1 style="margin:0 0 12px;font-size:20px;color:#10151d;">Choisissez un nouveau mot de passe</h1>
+        <p style="margin:0 0 20px;font-size:15px;line-height:1.5;color:#3b4654;">
+          Vous avez demandé à changer le mot de passe de votre compte PIECEO_Z. Cliquez sur le bouton ci-dessous pour en choisir un nouveau.
+        </p>
+        <p style="margin:0 0 24px;">
+          <a href="{{ .SiteURL }}/compte/confirmation?token_hash={{ .TokenHash }}&type=recovery"
+             style="display:inline-block;background:#1a5fe0;color:#ffffff;text-decoration:none;font-weight:bold;font-size:15px;letter-spacing:1px;padding:13px 26px;border-radius:6px;">
+            Choisir un nouveau mot de passe
+          </a>
+        </p>
+        <p style="margin:0 0 6px;font-size:13px;line-height:1.5;color:#667385;">
+          Le bouton ne marche pas ? Copiez cette adresse dans votre navigateur :
+        </p>
+        <p style="margin:0 0 20px;font-size:12px;line-height:1.5;word-break:break-all;color:#1a5fe0;">
+          {{ .SiteURL }}/compte/confirmation?token_hash={{ .TokenHash }}&type=recovery
+        </p>
+        <p style="margin:0;font-size:13px;line-height:1.5;color:#667385;">
+          Vous n'avez rien demandé ? Ignorez ce message : votre mot de passe actuel reste inchangé. Ce lien ne sert qu'une fois et expire au bout d'une heure.
+        </p>
+      </td>
+    </tr>
+    <tr>
+      <td style="padding:16px 28px;background:#f3f5f8;font-size:12px;line-height:1.5;color:#667385;">
+        PIECEO_Z · Pièces détachées automobiles · Rte Hizamia, El Alia, Bizerte · 56 456 124
+      </td>
+    </tr>
+  </table>
+</div>
